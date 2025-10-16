@@ -24,7 +24,7 @@ public class CardController {
         return cardService.getAllCards();
     }
 
-    @PostMapping("/users/{userId}/cards")
+    @PostMapping("/users/{userId}")
     public CardEntity createCardForUser(
             @PathVariable Long userId,
             @RequestBody CardEntity card) {

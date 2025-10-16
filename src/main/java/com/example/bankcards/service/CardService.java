@@ -3,6 +3,8 @@ package com.example.bankcards.service;
 import com.example.bankcards.entity.CardEntity;
 import com.example.bankcards.entity.UserEntity;
 import com.example.bankcards.repository.CardRepository;
+import com.example.bankcards.repository.UserRepository;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
@@ -13,17 +15,21 @@ import java.util.List;
 @Service
 public class CardService {
     private final CardRepository cardRepository;
+    private final UserRepository userRepository;
 
-    public CardService(CardRepository cardRepository) {
+    public CardService(CardRepository cardRepository, UserRepository userRepository) {
         this.cardRepository = cardRepository;
+        this.userRepository = userRepository;
     }
 
     public List<CardEntity> getAllCards() {
         return cardRepository.findAll();
     }
 
-    public CardEntity createCard(CardEntity card) {
-
+    public CardEntity createCardForUser(Long userId, CardEntity card) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+        card.setUser(user);
         return cardRepository.save(card);
     }
 

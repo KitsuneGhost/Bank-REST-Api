@@ -12,9 +12,6 @@ public class CardEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
-    private Date createdAt;
-    private Date updatedAt;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private UserEntity user;
@@ -22,10 +19,6 @@ public class CardEntity {
     @Convert(converter = AttributeEncryptor.class)
     @Column(nullable = false, unique = true)
     private String cardNumber;
-
-    @Convert(converter = AttributeEncryptor.class)
-    @Column(nullable = false)
-    private String holderName;
 
     @Column(nullable = false)
     private Date expirationDate;
@@ -51,7 +44,6 @@ public class CardEntity {
         this.id = id;
         this.user = user;
         this.cardNumber = cardNumber;
-        this.holderName = holderName;
         this.expirationDate = expirationDate;
         this.cvv = cvv;
         this.status = status;
@@ -63,13 +55,10 @@ public class CardEntity {
     public long getId() {return id;}
 
     public UserEntity getUser() {return user;}
-    protected void setUser(UserEntity user) {this.user = user;}
+    public void setUser(UserEntity user) {this.user = user;}
 
     public String getCardNumber() {return cardNumber;}
     public void setCardNumber(String cardNumber) {this.cardNumber = cardNumber;}
-
-    public String getHolderName() {return holderName;}
-    public void setHolderName(String holderName) {this.holderName = holderName;}
 
     public Date getExpirationDate() {return expirationDate;}
     public void setExpirationDate(Date expirationDate) {this.expirationDate = expirationDate;}
@@ -87,6 +76,11 @@ public class CardEntity {
 
     public void setPin(String pin) {this.pin = pin;}
 
+    @Transient
+    public String getHolderName() {
+        // это не сохраняетс в бд
+        return user != null ? user.getFullName() : null;
+    }
 
     @PrePersist
     public void validateBeforeInsert() {

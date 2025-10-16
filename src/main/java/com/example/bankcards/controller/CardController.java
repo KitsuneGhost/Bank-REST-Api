@@ -4,6 +4,7 @@ import com.example.bankcards.entity.CardEntity;
 import com.example.bankcards.entity.UserEntity;
 import com.example.bankcards.service.CardService;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Date;
@@ -23,9 +24,11 @@ public class CardController {
         return cardService.getAllCards();
     }
 
-    @PostMapping
-    public CardEntity createCard(@RequestBody CardEntity card) {
-        return cardService.createCard(card);
+    @PostMapping("/users/{userId}/cards")
+    public CardEntity createCardForUser(
+            @PathVariable Long userId,
+            @RequestBody CardEntity card) {
+        return cardService.createCardForUser(userId, card);
     }
 
     @PutMapping("/{id}")

@@ -4,9 +4,11 @@ import com.example.bankcards.entity.CardEntity;
 import com.example.bankcards.entity.UserEntity;
 import com.example.bankcards.repository.CardRepository;
 import com.example.bankcards.repository.UserRepository;
+import com.example.bankcards.util.SecurityUtils;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.BeanUtils;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
@@ -16,14 +18,19 @@ import java.util.List;
 public class CardService {
     private final CardRepository cardRepository;
     private final UserRepository userRepository;
+    private final SecurityUtils security;
 
-    public CardService(CardRepository cardRepository, UserRepository userRepository) {
+    public CardService(CardRepository cardRepository, UserRepository userRepository, SecurityUtils securityUtils) {
         this.cardRepository = cardRepository;
         this.userRepository = userRepository;
+        this.security = securityUtils;
     }
 
     public List<CardEntity> getAllCards() {
-        return cardRepository.findAll();
+        if (security.isAdmin()) {
+            return cardRepository.findAll();
+        }
+        return cardRepository.findAllByUser_Id(security.currentUserId());
     }
 
     public CardEntity createCardForUser(Long userId, CardEntity card) {
@@ -50,8 +57,17 @@ public class CardService {
     }
 
     public CardEntity findById(Long id) {
-        return cardRepository.findById(id)
+        CardEntity card = cardRepository.findById(id) // getting the card
                 .orElseThrow(() -> new RuntimeException("Card not found"));
+
+        if (security.isAdmin()) return card; // if the user is admin return card
+
+        // user is not an admin, getting id to check if the card belongs to the user
+        Long me = security.currentUserId();
+        if (card.getUserId().equals(me)) {
+            return card;
+        }
+        throw new AccessDeniedException("You can only access your own card");
     }
 
     public List<CardEntity> findByUser(UserEntity user) {
@@ -59,7 +75,7 @@ public class CardService {
     }
 
     public List<CardEntity> findAllByUserId(Long id) {
-        return cardRepository.findAllByUserId(id);
+        return cardRepository.findAllByUser_Id(id);
     }
 
     public CardEntity findByCardNumber(String cardNumber) {
@@ -100,30 +116,83 @@ public class CardService {
     }
 
     public List<CardEntity> findByUserIdAndStatus(Long userId, String status) {
-        return cardRepository.findByUserIdAndStatus(userId, status);
+        return cardRepository.findByUser_IdAndStatus(userId, status);
     }
 
     public List<CardEntity> findByUserIdAndBalanceBetween(Long userId, Float min, Float max) {
-        return cardRepository.findByUserIdAndBalanceBetween(userId, min, max);
+        return cardRepository.findByUser_IdAndBalanceBetween(userId, min, max);
     }
 
     public List<CardEntity> findByUserIdAndBalanceGreaterThan(Long userId, Float min) {
-        return cardRepository.findByUserIdAndBalanceGreaterThan(userId, min);
+        return cardRepository.findByUser_IdAndBalanceGreaterThan(userId, min);
     }
 
     public List<CardEntity> findByUserIdAndBalanceLessThan(Long userId, Float max) {
-        return cardRepository.findByUserIdAndBalanceLessThan(userId, max);
+        return cardRepository.findByUser_IdAndBalanceLessThan(userId, max);
     }
 
     public List<CardEntity> findByUserIdAndExpirationDateBefore(Long id, Date date) {
-        return cardRepository.findByUserIdAndExpirationDateBefore(id, date);
+        return cardRepository.findByUser_IdAndExpirationDateBefore(id, date);
     }
 
     public List<CardEntity> findByUserIdAndExpirationDateAfter(Long id, Date date) {
-        return cardRepository.findByUserIdAndExpirationDateAfter(id, date);
+        return cardRepository.findByUser_IdAndExpirationDateAfter(id, date);
     }
 
     public List<CardEntity> findByUserIdAndExpirationDateBetween(Long id, Date minDate, Date maxDate) {
-        return cardRepository.findByUserIdAndExpirationDateBetween(id, minDate, maxDate);
+        return cardRepository.findByUser_IdAndExpirationDateBetween(id, minDate, maxDate);
+    }
+
+    public List<CardEntity> filterCards(Long userId,
+                                        Float minBalance,
+                                        Float maxBalance,
+                                        Date minDate,
+                                        Date maxDate,
+                                        String status) {
+
+        // Force the effective user scope if not admin
+        Long effectiveUserId = security.isAdmin() ? userId : security.currentUserId();
+
+        // filtering
+        if (effectiveUserId != null && status != null)
+            return cardRepository.findByUser_IdAndStatus(effectiveUserId, status);
+
+        if (effectiveUserId != null) {
+            if (minDate != null && maxDate != null)
+                return cardRepository.findByUser_IdAndExpirationDateBetween(effectiveUserId, minDate, maxDate);
+            if (minDate != null)
+                return cardRepository.findByUser_IdAndExpirationDateAfter(effectiveUserId, minDate);
+            if (maxDate != null)
+                return cardRepository.findByUser_IdAndExpirationDateBefore(effectiveUserId, maxDate);
+
+            if (minBalance != null && maxBalance != null)
+                return cardRepository.findByUser_IdAndBalanceBetween(effectiveUserId, minBalance, maxBalance);
+            if (minBalance != null)
+                return cardRepository.findByUser_IdAndBalanceGreaterThan(effectiveUserId, minBalance);
+            if (maxBalance != null)
+                return cardRepository.findByUser_IdAndBalanceLessThan(effectiveUserId, maxBalance);
+
+            return cardRepository.findAllByUser_Id(effectiveUserId);
+        }
+
+        // admin only paths below
+        if (minBalance != null && maxBalance != null)
+            return cardRepository.findByBalanceBetween(minBalance, maxBalance);
+        if (minBalance != null)
+            return cardRepository.findByBalanceGreaterThan(minBalance);
+        if (maxBalance != null)
+            return cardRepository.findByBalanceLessThan(maxBalance);
+
+        if (minDate != null && maxDate != null)
+            return cardRepository.findByExpirationDateBetween(minDate, maxDate);
+        if (minDate != null)
+            return cardRepository.findByExpirationDateAfter(minDate);
+        if (maxDate != null)
+            return cardRepository.findByExpirationDateBefore(maxDate);
+
+        if (status != null)
+            return cardRepository.findAllByStatus(status);
+
+        return cardRepository.findAll();
     }
 }

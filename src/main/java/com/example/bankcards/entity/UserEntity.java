@@ -49,7 +49,7 @@ public class UserEntity {
         this.cards = cards;
     }
 
-    // геттеры и сеттеры
+    // setters & getters
     public long getId() {return id;}
 
     public String getUsername() {return username;}

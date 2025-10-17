@@ -12,7 +12,7 @@ public interface CardRepository extends JpaRepository<CardEntity, Long> {
 
     List<CardEntity> findByUser(UserEntity user);
 
-    List<CardEntity> findAllByUserId(Long userId);
+    List<CardEntity> findAllByUser_Id(Long user_Id);
 
     Optional<CardEntity> findByCardNumber(String cardNumber);
 
@@ -32,17 +32,17 @@ public interface CardRepository extends JpaRepository<CardEntity, Long> {
 
     List<CardEntity> findByUserAndStatus(UserEntity user, String status);
 
-    List<CardEntity> findByUserIdAndStatus(Long userId, String status);
+    List<CardEntity> findByUser_IdAndStatus(Long user_Id, String status);
 
-    List<CardEntity> findByUserIdAndBalanceBetween(Long userId, Float min, Float max);
+    List<CardEntity> findByUser_IdAndBalanceBetween(Long user_Id, Float min, Float max);
 
-    List<CardEntity> findByUserIdAndBalanceGreaterThan(Long userId, Float min);
+    List<CardEntity> findByUser_IdAndBalanceGreaterThan(Long user_Id, Float min);
 
-    List<CardEntity> findByUserIdAndBalanceLessThan(Long userId, Float max);
+    List<CardEntity> findByUser_IdAndBalanceLessThan(Long user_Id, Float max);
 
-    List<CardEntity> findByUserIdAndExpirationDateBefore(Long userId, Date date);
+    List<CardEntity> findByUser_IdAndExpirationDateBefore(Long user_Id, Date date);
 
-    List<CardEntity> findByUserIdAndExpirationDateAfter(Long userId, Date date);
+    List<CardEntity> findByUser_IdAndExpirationDateAfter(Long user_Id, Date date);
 
-    List<CardEntity> findByUserIdAndExpirationDateBetween(Long userId, Date minDate, Date maxDate);
+    List<CardEntity> findByUser_IdAndExpirationDateBetween(Long user_Id, Date minDate, Date maxDate);
 }

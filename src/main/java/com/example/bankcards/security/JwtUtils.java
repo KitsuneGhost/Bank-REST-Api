@@ -1,12 +1,10 @@
 package com.example.bankcards.security;
-import com.example.bankcards.security.CustomUserDetails;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
 import java.util.Date;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @Component

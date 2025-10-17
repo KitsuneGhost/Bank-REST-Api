@@ -4,6 +4,7 @@ import com.example.bankcards.entity.CardEntity;
 import com.example.bankcards.entity.UserEntity;
 import com.example.bankcards.service.CardService;
 import com.example.bankcards.service.UserService;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -70,5 +71,19 @@ public class UserController {
     @GetMapping("/{id}/cards")
     public List<CardEntity> getUserCards(@PathVariable Long id) {
         return cardService.findAllByUserId(id);
+    }
+
+    public boolean isAdmin() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+    }
+
+    public String currentUsername() {
+        return SecurityContextHolder.getContext().getAuthentication().getName();
+    }
+
+    public Long currentUserId() {
+        return userService.findByUsername(currentUsername()).getId();
     }
 }

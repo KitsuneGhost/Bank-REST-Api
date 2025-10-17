@@ -11,7 +11,7 @@ import java.util.Date;
 public class CardEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
@@ -53,7 +53,7 @@ public class CardEntity {
         this.pin = pin;
     }
 
-    // сеттеры и геттеры
+    // setters & getters
     public long getId() {return id;}
 
     public UserEntity getUser() {return user;}
@@ -78,9 +78,13 @@ public class CardEntity {
 
     public void setPin(String pin) {this.pin = pin;}
 
+    public Long getUserId() {
+        return user.getId();
+    }
+
     @Transient
     public String getHolderName() {
-        // это не сохраняетс в бд
+        // this will not be saved in database
         return user != null ? user.getFullName() : null;
     }
 

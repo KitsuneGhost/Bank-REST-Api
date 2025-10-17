@@ -1,6 +1,8 @@
 package com.example.bankcards.controller;
 
+import com.example.bankcards.entity.CardEntity;
 import com.example.bankcards.entity.UserEntity;
+import com.example.bankcards.service.CardService;
 import com.example.bankcards.service.UserService;
 import org.springframework.web.bind.annotation.*;
 
@@ -10,9 +12,11 @@ import java.util.List;
 @RequestMapping("/users")
 public class UserController {
     private final UserService userService;
+    private final CardService cardService;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService, CardService cardService) {
         this.userService = userService;
+        this.cardService = cardService;
     }
 
     @GetMapping
@@ -61,5 +65,10 @@ public class UserController {
     @GetMapping("/filter/cardNumber/{cardNumber}")
     public UserEntity getUserByCardNumber(@PathVariable String cardNumber) {
         return userService.findByCardsNumber(cardNumber);
+    }
+
+    @GetMapping("/{id}/cards")
+    public List<CardEntity> getUserCards(@PathVariable Long id) {
+        return cardService.findAllByUserId(id);
     }
 }

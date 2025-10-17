@@ -95,5 +95,4 @@ public class UserService {
         user.removeCard(card);
         return userRepository.save(user);
     }
-
 }

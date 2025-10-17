@@ -39,7 +39,8 @@ public class CardService {
                 () -> new RuntimeException("Card was Not Found")
         );
 
-        BeanUtils.copyProperties(updCard, existingCard, "id", "cardNumber");
+        BeanUtils.copyProperties(updCard, existingCard, "id", "cardNumber", "user", "cvv",
+                "expirationDate");
 
         return cardRepository.save(existingCard);
     }

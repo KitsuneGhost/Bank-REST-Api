@@ -1,10 +1,13 @@
 package com.example.bankcards.entity;
 
+import com.example.bankcards.security.Role;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "users")
@@ -28,6 +31,11 @@ public class UserEntity {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
     private List<CardEntity> cards = new ArrayList<>();
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
+    @Enumerated(EnumType.STRING)
+    private Set<Role> roles = new HashSet<>();
 
     public UserEntity() {}
 
@@ -58,6 +66,13 @@ public class UserEntity {
 
     public List<CardEntity> getCards() {return cards;}
     public void setCards(List<CardEntity> cards) {this.cards = cards;}
+
+    public Set<Role> getRoles() {
+        return roles;
+    }
+    public void setRoles(Set<Role> roles) {
+        this.roles = roles;
+    }
 
     public void addCard(CardEntity card) {
         cards.add(card);

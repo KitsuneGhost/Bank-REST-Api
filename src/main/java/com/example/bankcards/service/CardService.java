@@ -1,16 +1,21 @@
 package com.example.bankcards.service;
 
+import com.example.bankcards.dto.card.CardCreateRequestDTO;
+import com.example.bankcards.dto.card.CardResponseDTO;
 import com.example.bankcards.entity.CardEntity;
 import com.example.bankcards.entity.UserEntity;
 import com.example.bankcards.repository.CardRepository;
 import com.example.bankcards.repository.UserRepository;
 import com.example.bankcards.util.SecurityUtils;
-import jakarta.persistence.EntityNotFoundException;
-import jakarta.transaction.Transactional;
+import com.example.bankcards.util.mapper.CardMapper;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.BeanUtils;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.Date;
 import java.util.List;
@@ -20,11 +25,16 @@ public class CardService {
     private final CardRepository cardRepository;
     private final UserRepository userRepository;
     private final SecurityUtils security;
+    private final UserService userService;
+    private final CurrentUserService currentUserService; // helper that reads SecurityContext
 
-    public CardService(CardRepository cardRepository, UserRepository userRepository, SecurityUtils securityUtils) {
+    public CardService(CardRepository cardRepository, UserRepository userRepository,
+                       SecurityUtils securityUtils, UserService userService, CurrentUserService currentUserService) {
         this.cardRepository = cardRepository;
         this.userRepository = userRepository;
         this.security = securityUtils;
+        this.userService = userService;
+        this.currentUserService = currentUserService;
     }
 
     public List<CardEntity> getAllCards() {
@@ -34,11 +44,49 @@ public class CardService {
         return cardRepository.findAllByUser_Id(security.currentUserId());
     }
 
-    public CardEntity createCardForUser(Long userId, CardEntity card) {
-        UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("User not found"));
-        card.setUser(user);
+    @Transactional
+    public CardEntity createForCurrentUser(CardCreateRequestDTO dto) {
+        UserEntity me = currentUserService.requireCurrentUser();
+        CardEntity card = CardMapper.toEntity(dto);
+        card.setUser(me);
         return cardRepository.save(card);
+    }
+
+    @Transactional
+    public CardEntity createForUser(Long userId, CardCreateRequestDTO dto) {
+        UserEntity owner = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+        CardEntity card = CardMapper.toEntity(dto);
+        card.setUser(owner);
+        return cardRepository.save(card);
+    }
+
+    // guard for reading a card by id (USER must own it):
+    @Transactional(readOnly = true)
+    public CardEntity getByIdAuthorized(Long cardId) {
+        UserEntity me = currentUserService.requireCurrentUser();
+        boolean isAdmin = me.getRoles().stream().anyMatch("ROLE_ADMIN"::equals);
+
+        if (isAdmin) {
+            return cardRepository.findById(cardId)
+                    .orElseThrow(() -> new IllegalArgumentException("Card not found: " + cardId));
+        }
+
+        return cardRepository.findByIdAndUser_Id(cardId, me.getId())
+                .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException("Forbidden"));
+    }
+
+    public CardResponseDTO getOwnedCard(Long id) {
+        UserEntity me = userService.getCurrentUserEntity();
+        boolean isAdmin = me.getRoles().equals("ADMIN");
+        CardEntity card = isAdmin
+                ? cardRepository.findById(id).orElseThrow(() -> notFound(id))
+                : cardRepository.findByIdAndUser_Id(id, me.getId()).orElseThrow(() -> notFound(id));
+        return CardMapper.toResponse(card);
+    }
+
+    private ResponseStatusException notFound(Long id) {
+        return new ResponseStatusException(HttpStatus.NOT_FOUND, "Card %d not found".formatted(id));
     }
 
     @Transactional
@@ -84,15 +132,15 @@ public class CardService {
                 .orElseThrow(() -> new RuntimeException("Card not found"));
     }
 
-    public List<CardEntity> findByBalanceGreaterThan(Float balance) {
+    public List<CardEntity> findByBalanceGreaterThan(BigDecimal balance) {
         return cardRepository.findByBalanceGreaterThan(balance);
     }
 
-    public List<CardEntity> findByBalanceLessThan(Float balance) {
+    public List<CardEntity> findByBalanceLessThan(BigDecimal balance) {
         return cardRepository.findByBalanceLessThan(balance);
     }
 
-    public List<CardEntity> findByBalanceBetween(Float minBalance, Float maxBalance) {
+    public List<CardEntity> findByBalanceBetween(BigDecimal minBalance, BigDecimal maxBalance) {
         return cardRepository.findByBalanceBetween(minBalance, maxBalance);
     }
 
@@ -120,15 +168,15 @@ public class CardService {
         return cardRepository.findByUser_IdAndStatus(userId, status);
     }
 
-    public List<CardEntity> findByUserIdAndBalanceBetween(Long userId, Float min, Float max) {
+    public List<CardEntity> findByUserIdAndBalanceBetween(Long userId, BigDecimal min, BigDecimal max) {
         return cardRepository.findByUser_IdAndBalanceBetween(userId, min, max);
     }
 
-    public List<CardEntity> findByUserIdAndBalanceGreaterThan(Long userId, Float min) {
+    public List<CardEntity> findByUserIdAndBalanceGreaterThan(Long userId, BigDecimal min) {
         return cardRepository.findByUser_IdAndBalanceGreaterThan(userId, min);
     }
 
-    public List<CardEntity> findByUserIdAndBalanceLessThan(Long userId, Float max) {
+    public List<CardEntity> findByUserIdAndBalanceLessThan(Long userId, BigDecimal max) {
         return cardRepository.findByUser_IdAndBalanceLessThan(userId, max);
     }
 
@@ -145,8 +193,8 @@ public class CardService {
     }
 
     public List<CardEntity> filterCards(Long userId,
-                                        Float minBalance,
-                                        Float maxBalance,
+                                        BigDecimal minBalance,
+                                        BigDecimal maxBalance,
                                         YearMonth minDate,
                                         YearMonth maxDate,
                                         String status) {

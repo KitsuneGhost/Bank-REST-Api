@@ -6,9 +6,13 @@ import com.example.bankcards.repository.CardRepository;
 import com.example.bankcards.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.BeanUtils;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Optional;
@@ -64,7 +68,7 @@ public class UserService {
         return userRepository.findByFullName(fullName);
     }
 
-    public UserEntity findByEmail(String email) {
+    public Optional<UserEntity> findByEmail(String email) {
         return userRepository.findByEmail(email);
     }
 
@@ -80,6 +84,18 @@ public class UserService {
 
     public List<UserEntity> findUsersWithNamePart(String namePart) {
         return userRepository.findByFullNameContainingIgnoreCase(namePart);
+    }
+
+    public UserEntity getCurrentUserEntity() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        if (auth == null || !auth.isAuthenticated() || auth.getPrincipal().equals("anonymousUser")) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not authenticated");
+        }
+
+        String username = auth.getName(); // this is typically the email or username
+        return userRepository.findByEmail(username)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
     }
 
     public UserEntity addCardToUser(Long userId, CardEntity card) {

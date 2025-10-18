@@ -4,6 +4,7 @@ import com.example.bankcards.entity.CardEntity;
 import com.example.bankcards.entity.UserEntity;
 import com.example.bankcards.service.CardService;
 import com.example.bankcards.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,12 +27,12 @@ public class UserController {
     }
 
     @PostMapping
-    public UserEntity registerUser(@RequestBody UserEntity user) {
+    public UserEntity registerUser(@Valid  @RequestBody UserEntity user) {
         return userService.registerUser(user);
     }
 
     @PutMapping("/{id}")
-    public UserEntity updateUser(@PathVariable Long id, @RequestBody UserEntity updUser) {
+    public UserEntity updateUser(@PathVariable Long id, @Valid @RequestBody UserEntity updUser) {
         return userService.updateUser(id, updUser);
     }
 
@@ -60,7 +61,8 @@ public class UserController {
 
     @GetMapping("/filter/email/{email}")
     public UserEntity getUserByEmail(@PathVariable String email) {
-        return userService.findByEmail(email);
+        return userService.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User Not Found"));
     }
 
     @GetMapping("/filter/cardNumber/{cardNumber}")

@@ -1,4 +1,4 @@
-package com.example.bankcards.util;
+package com.example.bankcards.util.encryptors;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;

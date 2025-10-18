@@ -1,4 +1,4 @@
-package com.example.bankcards.util;
+package com.example.bankcards.util.converter;
 
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;

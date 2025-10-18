@@ -1,4 +1,4 @@
-package com.example.bankcards.util;
+package com.example.bankcards.util.encryptors;
 
 
 // mask for card numbers

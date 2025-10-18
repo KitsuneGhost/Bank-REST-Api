@@ -1,10 +1,12 @@
 package com.example.bankcards.entity;
 
-import com.example.bankcards.util.AttributeEncryptor;
-import com.example.bankcards.util.YearMonthDateAttributeConverter;
+import com.example.bankcards.util.converter.PanEncryptConverter;
+import com.example.bankcards.util.encryptors.AttributeEncryptor;
+import com.example.bankcards.util.converter.YearMonthDateAttributeConverter;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 
+import java.math.BigDecimal;
 import java.time.YearMonth;
 
 @Entity
@@ -19,7 +21,7 @@ public class CardEntity {
     @JsonBackReference
     private UserEntity user;
 
-    @Convert(converter = AttributeEncryptor.class)
+    @Convert(converter = PanEncryptConverter.class)
     @Column(nullable = false, unique = true)
     private String cardNumber;
 
@@ -35,7 +37,7 @@ public class CardEntity {
     private String status;
 
     @Column(nullable = false)
-    private float balance;
+    private BigDecimal balance;
 
     @Convert(converter = AttributeEncryptor.class)
     @Column(nullable = false)
@@ -44,7 +46,7 @@ public class CardEntity {
     public CardEntity() {}
 
     public CardEntity(long id, UserEntity user, String cardNumber, String holderName,
-                      YearMonth expirationDate, String cvv, String status, float balance, String pin) {
+                      YearMonth expirationDate, String cvv, String status, BigDecimal balance, String pin) {
         this.id = id;
         this.user = user;
         this.cardNumber = cardNumber;
@@ -73,8 +75,8 @@ public class CardEntity {
     public String getStatus() {return status;}
     public void setStatus(String status) {this.status = status;}
 
-    public float getBalance() {return balance;}
-    public void setBalance(float balance) {this.balance = balance;}
+    public BigDecimal getBalance() {return balance;}
+    public void setBalance(BigDecimal balance) {this.balance = balance;}
 
     public String getPin() {return pin;}
 

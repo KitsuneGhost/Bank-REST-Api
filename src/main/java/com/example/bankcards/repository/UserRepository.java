@@ -13,7 +13,7 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
 
     List<UserEntity> findByFullName(String fullName);
 
-    UserEntity findByEmail(String email);
+    Optional<UserEntity> findByEmail(String email);
 
     Optional<UserEntity> findByCards(CardEntity card);
 

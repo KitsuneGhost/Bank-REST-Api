@@ -4,5 +4,5 @@ public record UserResponseDTO(
         Long id,
         String fullName,
         String email,
-        String role // "ADMIN" | "USER"
+        String role
 ) {}

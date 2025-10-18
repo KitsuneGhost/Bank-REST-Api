@@ -1,10 +1,16 @@
 package com.example.bankcards.controller;
 
+import com.example.bankcards.dto.card.CardCreateRequestDTO;
+import com.example.bankcards.dto.card.CardResponseDTO;
 import com.example.bankcards.entity.CardEntity;
 import com.example.bankcards.service.CardService;
+import com.example.bankcards.util.mapper.CardMapper;
+import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.Date;
 import java.util.List;
@@ -23,15 +29,31 @@ public class CardController {
         return cardService.getAllCards();
     }
 
-    @PostMapping("/users/{userId}")
-    public CardEntity createCardForUser(
-            @PathVariable Long userId,
-            @RequestBody CardEntity card) {
-        return cardService.createCardForUser(userId, card);
+    // Create card for the authenticated user
+    @PostMapping("/me/create")
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    public CardResponseDTO createForMe(@Valid @RequestBody CardCreateRequestDTO req) {
+        CardEntity saved = cardService.createForCurrentUser(req);
+        return CardMapper.toResponse(saved);
+    }
+
+    // Admin: create a card for a specific user
+    @PostMapping("/users/{userId}/create")
+    @PreAuthorize("hasRole('ADMIN')")
+    public CardResponseDTO createForUser(@PathVariable Long userId, @Valid @RequestBody CardCreateRequestDTO req) {
+        CardEntity saved = cardService.createForUser(userId, req);
+        return CardMapper.toResponse(saved);
+    }
+
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    public CardResponseDTO getById(@PathVariable Long id) {
+        CardEntity c = cardService.getByIdAuthorized(id);
+        return CardMapper.toResponse(c);
     }
 
     @PutMapping("/{id}")
-    public CardEntity updateCard(@PathVariable Long id, @RequestBody CardEntity card) {
+    public CardEntity updateCard(@PathVariable Long id, @Valid @RequestBody CardEntity card) {
         return cardService.updateCard(id, card);
     }
 
@@ -40,27 +62,24 @@ public class CardController {
         cardService.deleteCard(id);
     }
 
-    @GetMapping("/{id}")
-    public CardEntity getCardById(@PathVariable Long id) {
-        return cardService.findById(id);
-    }
-
     @GetMapping("/search/{cardNumber}")
-    public CardEntity getCardByNumber(@PathVariable String cardNumber) {
+    public CardEntity getCardByNumber(@Valid @PathVariable String cardNumber) {
         return cardService.findByCardNumber(cardNumber);
     }
 
     @GetMapping("/filter")
-    public List<CardEntity> filterCards(
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public List<CardResponseDTO> filterCards(
             @RequestParam(required = false) Long userId,
-            @RequestParam(required = false) Float minBalance,
-            @RequestParam(required = false) Float maxBalance,
+            @RequestParam(required = false) BigDecimal minBalance,
+            @RequestParam(required = false) BigDecimal maxBalance,
             @RequestParam(required = false)
             @DateTimeFormat(pattern = "yyyy-MM") YearMonth minDate,
             @RequestParam(required = false)
             @DateTimeFormat(pattern = "yyyy-MM") YearMonth maxDate,
             @RequestParam(required = false) String status) {
 
-        return cardService.filterCards(userId, minBalance, maxBalance, minDate, maxDate, status);
+        var cards = cardService.filterCards(userId, minBalance, maxBalance, minDate, maxDate, status);
+        return cards.stream().map(CardMapper::toResponse).toList();
     }
 }

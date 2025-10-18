@@ -1,6 +1,6 @@
-package com.example.bankcards.entity.convertor;
+package com.example.bankcards.util.converter;
 
-import com.example.bankcards.util.CryptoUtils;
+import com.example.bankcards.util.encryptors.CryptoUtils;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 

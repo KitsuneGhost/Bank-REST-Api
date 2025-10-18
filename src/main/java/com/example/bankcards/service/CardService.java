@@ -11,6 +11,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
+import java.time.YearMonth;
 import java.util.Date;
 import java.util.List;
 
@@ -95,15 +96,15 @@ public class CardService {
         return cardRepository.findByBalanceBetween(minBalance, maxBalance);
     }
 
-    public List<CardEntity> findByExpirationDateBefore(Date date) {
+    public List<CardEntity> findByExpirationDateBefore(YearMonth date) {
         return cardRepository.findByExpirationDateBefore(date);
     }
 
-    public List<CardEntity> findByExpirationDateAfter(Date date) {
+    public List<CardEntity> findByExpirationDateAfter(YearMonth date) {
         return cardRepository.findByExpirationDateAfter(date);
     }
 
-    public List<CardEntity> findByExpirationDateBetween(Date minDate, Date maxDate) {
+    public List<CardEntity> findByExpirationDateBetween(YearMonth minDate, YearMonth maxDate) {
         return cardRepository.findByExpirationDateBetween(minDate, maxDate);
     }
 
@@ -131,23 +132,23 @@ public class CardService {
         return cardRepository.findByUser_IdAndBalanceLessThan(userId, max);
     }
 
-    public List<CardEntity> findByUserIdAndExpirationDateBefore(Long id, Date date) {
+    public List<CardEntity> findByUserIdAndExpirationDateBefore(Long id, YearMonth date) {
         return cardRepository.findByUser_IdAndExpirationDateBefore(id, date);
     }
 
-    public List<CardEntity> findByUserIdAndExpirationDateAfter(Long id, Date date) {
+    public List<CardEntity> findByUserIdAndExpirationDateAfter(Long id, YearMonth date) {
         return cardRepository.findByUser_IdAndExpirationDateAfter(id, date);
     }
 
-    public List<CardEntity> findByUserIdAndExpirationDateBetween(Long id, Date minDate, Date maxDate) {
+    public List<CardEntity> findByUserIdAndExpirationDateBetween(Long id, YearMonth minDate, YearMonth maxDate) {
         return cardRepository.findByUser_IdAndExpirationDateBetween(id, minDate, maxDate);
     }
 
     public List<CardEntity> filterCards(Long userId,
                                         Float minBalance,
                                         Float maxBalance,
-                                        Date minDate,
-                                        Date maxDate,
+                                        YearMonth minDate,
+                                        YearMonth maxDate,
                                         String status) {
 
         // Force the effective user scope if not admin

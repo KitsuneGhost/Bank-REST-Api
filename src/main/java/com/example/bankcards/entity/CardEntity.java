@@ -1,10 +1,11 @@
 package com.example.bankcards.entity;
 
 import com.example.bankcards.util.AttributeEncryptor;
+import com.example.bankcards.util.YearMonthDateAttributeConverter;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 
-import java.util.Date;
+import java.time.YearMonth;
 
 @Entity
 @Table(name = "cards")
@@ -22,8 +23,9 @@ public class CardEntity {
     @Column(nullable = false, unique = true)
     private String cardNumber;
 
+    @Convert(converter = YearMonthDateAttributeConverter.class)
     @Column(nullable = false)
-    private Date expirationDate;
+    private YearMonth expirationDate;
 
     @Convert(converter = AttributeEncryptor.class)
     @Column(nullable = false)
@@ -42,7 +44,7 @@ public class CardEntity {
     public CardEntity() {}
 
     public CardEntity(long id, UserEntity user, String cardNumber, String holderName,
-                      Date expirationDate, String cvv, String status, float balance, String pin) {
+                      YearMonth expirationDate, String cvv, String status, float balance, String pin) {
         this.id = id;
         this.user = user;
         this.cardNumber = cardNumber;
@@ -62,8 +64,8 @@ public class CardEntity {
     public String getCardNumber() {return cardNumber;}
     public void setCardNumber(String cardNumber) {this.cardNumber = cardNumber;}
 
-    public Date getExpirationDate() {return expirationDate;}
-    public void setExpirationDate(Date expirationDate) {this.expirationDate = expirationDate;}
+    public YearMonth getExpirationDate() {return expirationDate;}
+    public void setExpirationDate(YearMonth expirationDate) {this.expirationDate = expirationDate;}
 
     public String getCvv() {return cvv;}
     public void setCvv(String cvv) {this.cvv = cvv;}

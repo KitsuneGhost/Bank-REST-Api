@@ -5,6 +5,7 @@ import com.example.bankcards.service.CardService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.YearMonth;
 import java.util.Date;
 import java.util.List;
 
@@ -55,9 +56,9 @@ public class CardController {
             @RequestParam(required = false) Float minBalance,
             @RequestParam(required = false) Float maxBalance,
             @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date minDate,
+            @DateTimeFormat(pattern = "yyyy-MM") YearMonth minDate,
             @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date maxDate,
+            @DateTimeFormat(pattern = "yyyy-MM") YearMonth maxDate,
             @RequestParam(required = false) String status) {
 
         return cardService.filterCards(userId, minBalance, maxBalance, minDate, maxDate, status);

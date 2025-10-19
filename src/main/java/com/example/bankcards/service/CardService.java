@@ -9,28 +9,40 @@ import com.example.bankcards.repository.CardRepository;
 import com.example.bankcards.repository.UserRepository;
 import com.example.bankcards.security.SecurityUtils;
 import com.example.bankcards.util.mapper.CardMapper;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoField;
 import java.util.List;
 
 @Service
 public class CardService {
+
     private final CardRepository cardRepository;
     private final UserRepository userRepository;
     private final SecurityUtils security;
     private final UserService userService;
-    private final CurrentUserService currentUserService; // helper that reads SecurityContext
+    private final CurrentUserService currentUserService; // reads SecurityContext
 
-    public CardService(CardRepository cardRepository, UserRepository userRepository,
-                       SecurityUtils securityUtils, UserService userService, CurrentUserService currentUserService) {
+    private static final DateTimeFormatter MM_YY_TO_LOCALDATE =
+            new DateTimeFormatterBuilder()
+                    .parseCaseInsensitive()
+                    .appendPattern("MM/yy")
+                    .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                    .toFormatter();
+
+    public CardService(CardRepository cardRepository,
+                       UserRepository userRepository,
+                       SecurityUtils securityUtils,
+                       UserService userService,
+                       CurrentUserService currentUserService) {
         this.cardRepository = cardRepository;
         this.userRepository = userRepository;
         this.security = securityUtils;
@@ -38,74 +50,92 @@ public class CardService {
         this.currentUserService = currentUserService;
     }
 
+    /* ========================= READ ========================= */
+
     @Transactional(readOnly = true)
     public List<CardResponseDTO> getAllCards() {
-        List<CardEntity> cards;
-
-        if (security.isAdmin()) {
-            cards = cardRepository.findAll();
-        } else {
-            cards = cardRepository.findAllByUser_Id(security.currentUserId());
-        }
+        final List<CardEntity> cards = security.isAdmin()
+                ? cardRepository.findAll()
+                : cardRepository.findAllByUser_Id(security.currentUserId());
 
         return cards.stream()
                 .map(CardMapper::toResponse)
                 .toList();
     }
 
-    @Transactional
-    public CardEntity createForCurrentUser(CardCreateRequestDTO dto) {
-        UserEntity me = currentUserService.requireCurrentUser();
-        CardEntity card = CardMapper.toEntity(dto);
-        card.setUser(me);
-        return cardRepository.save(card);
-    }
-
-    @Transactional
-    public CardEntity createForUser(Long userId, CardCreateRequestDTO dto) {
-        UserEntity owner = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
-        CardEntity card = CardMapper.toEntity(dto);
-        card.setUser(owner);
-        return cardRepository.save(card);
-    }
-
-    // guard for reading a card by id (USER must own it):
+    // Used by GET /cards/{id}
     @Transactional(readOnly = true)
     public CardEntity getByIdAuthorized(Long cardId) {
-        UserEntity me = security.requireCurrentUser();
-        boolean admin = security.isAdmin();
-
-        if (admin) {
+        if (security.isAdmin()) {
             return cardRepository.findById(cardId)
                     .orElseThrow(() -> new IllegalArgumentException("Card not found: " + cardId));
         }
-
-        return cardRepository.findByIdAndUser_Id(cardId, me.getId())
+        Long me = security.currentUserId();
+        return cardRepository.findByIdAndUser_Id(cardId, me)
                 .orElseThrow(() -> new AccessDeniedException("Forbidden"));
     }
 
+    // (Controller uses this to map to DTO)
+    @Transactional(readOnly = true)
     public CardResponseDTO getOwnedCard(Long id) {
         UserEntity me = userService.getCurrentUserEntity();
-        boolean isAdmin = me.getRoles().equals("ADMIN");
+        boolean isAdmin = "ADMIN".equals(me.getRoles());
         CardEntity card = isAdmin
                 ? cardRepository.findById(id).orElseThrow(() -> notFound(id))
                 : cardRepository.findByIdAndUser_Id(id, me.getId()).orElseThrow(() -> notFound(id));
         return CardMapper.toResponse(card);
     }
 
-    private ResponseStatusException notFound(Long id) {
-        return new ResponseStatusException(HttpStatus.NOT_FOUND, "Card %d not found".formatted(id));
+    /* ========================= CREATE ========================= */
+
+    // POST /cards/me/create
+    @Transactional
+    public CardEntity createForCurrentUser(CardCreateRequestDTO dto) {
+        UserEntity me = currentUserService.requireCurrentUser();
+        CardEntity card = CardMapper.toEntity(dto);
+
+        // Satisfy NOT NULLs
+        if (card.getBalance() == null) card.setBalance(BigDecimal.ZERO);
+        if (card.getStatus() == null)  card.setStatus("ACTIVE");
+
+        card.setUser(me);
+        return cardRepository.save(card);
     }
 
+    // POST /cards/users/{userId}/create (ADMIN)
+    @Transactional
+    public CardEntity createForUser(Long userId, CardCreateRequestDTO dto) {
+        UserEntity owner = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+
+        CardEntity card = CardMapper.toEntity(dto);
+
+        // Satisfy NOT NULLs
+        if (card.getBalance() == null) card.setBalance(BigDecimal.ZERO);
+        if (card.getStatus() == null)  card.setStatus("ACTIVE");
+
+        card.setUser(owner);
+        return cardRepository.save(card);
+    }
+
+    /* ========================= UPDATE ========================= */
+
+    // PUT /cards/{id}  (ADMIN by controller, but keep owner-or-admin guard for safety)
     @Transactional
     public CardEntity updateCard(Long id, CardUpdateRequestDTO req) {
         CardEntity c = cardRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Card not found: " + id));
 
+        // Extra guard (controller already restricts to ADMIN, but safe to keep)
+        if (!security.isAdmin()) {
+            Long me = security.currentUserId();
+            if (!c.getUserId().equals(me)) {
+                throw new AccessDeniedException("Forbidden");
+            }
+        }
+
         if (req.expiry() != null) {
-            var fmt = DateTimeFormatter.ofPattern("MM/yy");
-            c.setExpirationDate(LocalDate.parse(req.expiry(), fmt));
+            c.setExpirationDate(LocalDate.parse(req.expiry(), MM_YY_TO_LOCALDATE));
         }
         if (req.status() != null) {
             c.setStatus(req.status());
@@ -113,97 +143,27 @@ public class CardService {
         return cardRepository.save(c);
     }
 
+    /* ========================= DELETE ========================= */
+
+    // DELETE /cards/{id}
+    @Transactional
     public void deleteCard(Long id) {
-        cardRepository.deleteById(id);
-    }
+        CardEntity c = cardRepository.findById(id)
+                .orElseThrow(() -> notFound(id));
 
-    public CardEntity findById(Long id) {
-        CardEntity card = cardRepository.findById(id) // getting the card
-                .orElseThrow(() -> new RuntimeException("Card not found"));
-
-        if (security.isAdmin()) return card; // if the user is admin return card
-
-        // user is not an admin, getting id to check if the card belongs to the user
-        Long me = security.currentUserId();
-        if (card.getUserId().equals(me)) {
-            return card;
+        if (!security.isAdmin()) {
+            Long me = security.currentUserId();
+            if (!c.getUserId().equals(me)) {
+                throw new AccessDeniedException("Forbidden");
+            }
         }
-        throw new AccessDeniedException("You can only access your own card");
+        cardRepository.delete(c);
     }
 
-    public List<CardEntity> findByUser(UserEntity user) {
-        return cardRepository.findByUser(user);
-    }
+    /* ========================= FILTER ========================= */
 
-    public List<CardEntity> findAllByUserId(Long id) {
-        return cardRepository.findAllByUser_Id(id);
-    }
-
-    public CardEntity findByCardNumber(String cardNumber) {
-        return cardRepository.findByCardNumber(cardNumber)
-                .orElseThrow(() -> new RuntimeException("Card not found"));
-    }
-
-    public List<CardEntity> findByBalanceGreaterThan(BigDecimal balance) {
-        return cardRepository.findByBalanceGreaterThan(balance);
-    }
-
-    public List<CardEntity> findByBalanceLessThan(BigDecimal balance) {
-        return cardRepository.findByBalanceLessThan(balance);
-    }
-
-    public List<CardEntity> findByBalanceBetween(BigDecimal minBalance, BigDecimal maxBalance) {
-        return cardRepository.findByBalanceBetween(minBalance, maxBalance);
-    }
-
-    public List<CardEntity> findByExpirationDateBefore(LocalDate date) {
-        return cardRepository.findByExpirationDateBefore(date);
-    }
-
-    public List<CardEntity> findByExpirationDateAfter(LocalDate date) {
-        return cardRepository.findByExpirationDateAfter(date);
-    }
-
-    public List<CardEntity> findByExpirationDateBetween(LocalDate minDate, LocalDate maxDate) {
-        return cardRepository.findByExpirationDateBetween(minDate, maxDate);
-    }
-
-    public List<CardEntity> findAllByStatus(String status) {
-        return cardRepository.findAllByStatus(status);
-    }
-
-    public List<CardEntity> findByUserAndStatus(UserEntity user, String status) {
-        return cardRepository.findByUserAndStatus(user, status);
-    }
-
-    public List<CardEntity> findByUserIdAndStatus(Long userId, String status) {
-        return cardRepository.findByUser_IdAndStatus(userId, status);
-    }
-
-    public List<CardEntity> findByUserIdAndBalanceBetween(Long userId, BigDecimal min, BigDecimal max) {
-        return cardRepository.findByUser_IdAndBalanceBetween(userId, min, max);
-    }
-
-    public List<CardEntity> findByUserIdAndBalanceGreaterThan(Long userId, BigDecimal min) {
-        return cardRepository.findByUser_IdAndBalanceGreaterThan(userId, min);
-    }
-
-    public List<CardEntity> findByUserIdAndBalanceLessThan(Long userId, BigDecimal max) {
-        return cardRepository.findByUser_IdAndBalanceLessThan(userId, max);
-    }
-
-    public List<CardEntity> findByUserIdAndExpirationDateBefore(Long id, LocalDate date) {
-        return cardRepository.findByUser_IdAndExpirationDateBefore(id, date);
-    }
-
-    public List<CardEntity> findByUserIdAndExpirationDateAfter(Long id, LocalDate date) {
-        return cardRepository.findByUser_IdAndExpirationDateAfter(id, date);
-    }
-
-    public List<CardEntity> findByUserIdAndExpirationDateBetween(Long id, LocalDate minDate, LocalDate maxDate) {
-        return cardRepository.findByUser_IdAndExpirationDateBetween(id, minDate, maxDate);
-    }
-
+    // GET /cards/filter (controller already handles roles)
+    @Transactional(readOnly = true)
     public List<CardEntity> filterCards(Long userId,
                                         BigDecimal minBalance,
                                         BigDecimal maxBalance,
@@ -211,12 +171,12 @@ public class CardService {
                                         LocalDate maxDate,
                                         String status) {
 
-        // Force the effective user scope if not admin
+        // If caller is not admin, force their own user scope
         Long effectiveUserId = security.isAdmin() ? userId : security.currentUserId();
 
-        // filtering
-        if (effectiveUserId != null && status != null)
+        if (effectiveUserId != null && status != null) {
             return cardRepository.findByUser_IdAndStatus(effectiveUserId, status);
+        }
 
         if (effectiveUserId != null) {
             if (minDate != null && maxDate != null)
@@ -236,7 +196,7 @@ public class CardService {
             return cardRepository.findAllByUser_Id(effectiveUserId);
         }
 
-        // admin only paths below
+        // Admin-only broader filters
         if (minBalance != null && maxBalance != null)
             return cardRepository.findByBalanceBetween(minBalance, maxBalance);
         if (minBalance != null)
@@ -255,5 +215,11 @@ public class CardService {
             return cardRepository.findAllByStatus(status);
 
         return cardRepository.findAll();
+    }
+
+    /* ========================= Helpers ========================= */
+
+    private ResponseStatusException notFound(Long id) {
+        return new ResponseStatusException(HttpStatus.NOT_FOUND, "Card %d not found".formatted(id));
     }
 }

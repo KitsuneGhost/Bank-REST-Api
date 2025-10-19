@@ -5,6 +5,7 @@ import com.example.bankcards.dto.card.CardResponseDTO;
 import com.example.bankcards.entity.CardEntity;
 import com.example.bankcards.util.encryptors.PanMasker;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
@@ -16,8 +17,11 @@ public final class CardMapper {
     // toEntity WITHOUT owner: owner is set in the service (current user or admin target)
     public static CardEntity toEntity(CardCreateRequestDTO dto) {
         CardEntity c = new CardEntity();
-        c.setCardNumber(dto.pan()); // encrypted via AttributeConverter
-        c.setExpirationDate(LocalDate.parse(dto.expiry(), MM_YY));
+        c.setCardNumber(dto.pan());
+        c.setExpirationDate(dto.parseExpiry());
+        c.setPin(dto.pin());
+        c.setCvv(dto.cvv());
+        c.setBalance(dto.balance());       // default
         c.setStatus("ACTIVE"); // default
         return c;
     }

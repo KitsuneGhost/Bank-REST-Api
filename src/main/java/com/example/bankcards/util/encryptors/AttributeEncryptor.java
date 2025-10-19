@@ -2,13 +2,19 @@ package com.example.bankcards.util.encryptors;
 
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 import java.util.Base64;
+import java.util.regex.Pattern;
 
 @Converter
 public class AttributeEncryptor implements AttributeConverter<String, String> {
+
+    private static final Logger log = LoggerFactory.getLogger(AttributeEncryptor.class);
+    private static final Pattern RAW_DIGITS = Pattern.compile("\\d{3,4}");
 
     private static final String ALGORITHM = "AES";
     private static final byte[] KEY;
@@ -42,6 +48,13 @@ public class AttributeEncryptor implements AttributeConverter<String, String> {
             cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(KEY, ALGORITHM));
             return new String(cipher.doFinal(Base64.getDecoder().decode(dbData)));
         } catch (Exception e) {
+            if (RAW_DIGITS.matcher(dbData).matches()) {
+                log.warn("Sensitive card attribute stored without encryption; returning raw value");
+                return dbData;
+            }
+            if (e instanceof RuntimeException runtime) {
+                throw runtime;
+            }
             throw new RuntimeException(e);
         }
     }

@@ -14,7 +14,7 @@ public final class CryptoUtils {
     private static final SecureRandom RNG = new SecureRandom();
     private static final byte[] KEY = Base64.getDecoder()
             .decode(System.getenv().getOrDefault("PAN_AES_KEY_B64",
-                    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="));
+                    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")); // fallback for dev
 
     private CryptoUtils(){}
 

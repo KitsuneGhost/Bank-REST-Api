@@ -8,9 +8,9 @@
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/bank_db
-    username: postgres
-    password: t4040657
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASS}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -20,3 +20,17 @@ spring:
       hibernate:
         format_sql: true
     show-sql: true
+
+server:
+  port: ${SERVER_PORT}
+
+# --------------------------
+# Security & encryption keys
+# --------------------------
+
+jwt:
+  secret-b64: ${JWT_SECRET_B64} # JWT signing key (Base64)
+
+encryption:
+  pan-key-b64: ${PAN_AES_KEY_B64} # AES key for card PANs (card numbers)
+  attribute-key-b64: ${ATTRIBUTE_AES_KEY_B64} # AES key for AttributeEncryptor

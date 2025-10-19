@@ -11,7 +11,16 @@ import java.util.Base64;
 public class AttributeEncryptor implements AttributeConverter<String, String> {
 
     private static final String ALGORITHM = "AES";
-    private static final byte[] KEY = "1234567890123456".getBytes();
+    private static final byte[] KEY;
+
+    static {
+        // Load AES key from environment
+        String keyBase64 = System.getenv().getOrDefault(
+                "ATTRIBUTE_AES_KEY_B64",
+                "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" // fallback for dev
+        );
+        KEY = Base64.getDecoder().decode(keyBase64);
+    }
 
     @Override
     public String convertToDatabaseColumn(String attribute) {

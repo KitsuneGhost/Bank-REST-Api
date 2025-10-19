@@ -1,6 +1,7 @@
 package com.example.bankcards.security;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.security.core.GrantedAuthority;
 
@@ -15,10 +16,9 @@ public class JwtUtils {
     private final Key key;
     private final long expirationMs = 24 * 60 * 60 * 1000; // 24h
 
-    public JwtUtils() {
-        String b64 = System.getenv().getOrDefault("JWT_SECRET_B64",
-                "ZmFrZS1qd3QtdG9rZW4tZm9yLXRlc3Rpbmc="); // REPLACE in prod
-        this.key = Keys.hmacShaKeyFor(Base64.getDecoder().decode(b64));
+    // Injected from application.yml -> ${JWT_SECRET_B64}
+    public JwtUtils(@Value("${jwt.secret-b64}") String secretBase64) {
+        this.key = Keys.hmacShaKeyFor(Base64.getDecoder().decode(secretBase64));
     }
 
     public long getExpirationMs() {

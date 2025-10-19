@@ -5,6 +5,7 @@ import com.example.bankcards.util.encryptors.AttributeEncryptor;
 import com.example.bankcards.util.converter.YearMonthDateAttributeConverter;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Min;
 
 import java.math.BigDecimal;
 import java.time.YearMonth;
@@ -36,7 +37,8 @@ public class CardEntity {
     @Column(nullable = false)
     private String status;
 
-    @Column(nullable = false)
+    @Min(0)
+    @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal balance;
 
     @Convert(converter = AttributeEncryptor.class)

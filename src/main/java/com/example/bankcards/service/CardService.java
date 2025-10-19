@@ -7,7 +7,7 @@ import com.example.bankcards.entity.CardEntity;
 import com.example.bankcards.entity.UserEntity;
 import com.example.bankcards.repository.CardRepository;
 import com.example.bankcards.repository.UserRepository;
-import com.example.bankcards.util.SecurityUtils;
+import com.example.bankcards.security.SecurityUtils;
 import com.example.bankcards.util.mapper.CardMapper;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpStatus;
@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -72,16 +73,16 @@ public class CardService {
     // guard for reading a card by id (USER must own it):
     @Transactional(readOnly = true)
     public CardEntity getByIdAuthorized(Long cardId) {
-        UserEntity me = currentUserService.requireCurrentUser();
-        boolean isAdmin = me.getRoles().stream().anyMatch("ROLE_ADMIN"::equals);
+        UserEntity me = security.requireCurrentUser();
+        boolean admin = security.isAdmin();
 
-        if (isAdmin) {
+        if (admin) {
             return cardRepository.findById(cardId)
                     .orElseThrow(() -> new IllegalArgumentException("Card not found: " + cardId));
         }
 
         return cardRepository.findByIdAndUser_Id(cardId, me.getId())
-                .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException("Forbidden"));
+                .orElseThrow(() -> new AccessDeniedException("Forbidden"));
     }
 
     public CardResponseDTO getOwnedCard(Long id) {
@@ -104,7 +105,7 @@ public class CardService {
 
         if (req.expiry() != null) {
             var fmt = DateTimeFormatter.ofPattern("MM/yy");
-            c.setExpirationDate(YearMonth.parse(req.expiry(), fmt));
+            c.setExpirationDate(LocalDate.parse(req.expiry(), fmt));
         }
         if (req.status() != null) {
             c.setStatus(req.status());
@@ -155,15 +156,15 @@ public class CardService {
         return cardRepository.findByBalanceBetween(minBalance, maxBalance);
     }
 
-    public List<CardEntity> findByExpirationDateBefore(YearMonth date) {
+    public List<CardEntity> findByExpirationDateBefore(LocalDate date) {
         return cardRepository.findByExpirationDateBefore(date);
     }
 
-    public List<CardEntity> findByExpirationDateAfter(YearMonth date) {
+    public List<CardEntity> findByExpirationDateAfter(LocalDate date) {
         return cardRepository.findByExpirationDateAfter(date);
     }
 
-    public List<CardEntity> findByExpirationDateBetween(YearMonth minDate, YearMonth maxDate) {
+    public List<CardEntity> findByExpirationDateBetween(LocalDate minDate, LocalDate maxDate) {
         return cardRepository.findByExpirationDateBetween(minDate, maxDate);
     }
 
@@ -191,23 +192,23 @@ public class CardService {
         return cardRepository.findByUser_IdAndBalanceLessThan(userId, max);
     }
 
-    public List<CardEntity> findByUserIdAndExpirationDateBefore(Long id, YearMonth date) {
+    public List<CardEntity> findByUserIdAndExpirationDateBefore(Long id, LocalDate date) {
         return cardRepository.findByUser_IdAndExpirationDateBefore(id, date);
     }
 
-    public List<CardEntity> findByUserIdAndExpirationDateAfter(Long id, YearMonth date) {
+    public List<CardEntity> findByUserIdAndExpirationDateAfter(Long id, LocalDate date) {
         return cardRepository.findByUser_IdAndExpirationDateAfter(id, date);
     }
 
-    public List<CardEntity> findByUserIdAndExpirationDateBetween(Long id, YearMonth minDate, YearMonth maxDate) {
+    public List<CardEntity> findByUserIdAndExpirationDateBetween(Long id, LocalDate minDate, LocalDate maxDate) {
         return cardRepository.findByUser_IdAndExpirationDateBetween(id, minDate, maxDate);
     }
 
     public List<CardEntity> filterCards(Long userId,
                                         BigDecimal minBalance,
                                         BigDecimal maxBalance,
-                                        YearMonth minDate,
-                                        YearMonth maxDate,
+                                        LocalDate minDate,
+                                        LocalDate maxDate,
                                         String status) {
 
         // Force the effective user scope if not admin

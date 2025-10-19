@@ -5,7 +5,7 @@ import com.example.bankcards.dto.card.CardResponseDTO;
 import com.example.bankcards.entity.CardEntity;
 import com.example.bankcards.util.encryptors.PanMasker;
 
-import java.time.YearMonth;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
 public final class CardMapper {
@@ -17,7 +17,7 @@ public final class CardMapper {
     public static CardEntity toEntity(CardCreateRequestDTO dto) {
         CardEntity c = new CardEntity();
         c.setCardNumber(dto.pan()); // encrypted via AttributeConverter
-        c.setExpirationDate(YearMonth.parse(dto.expiry(), MM_YY));
+        c.setExpirationDate(LocalDate.parse(dto.expiry(), MM_YY));
         c.setStatus("ACTIVE"); // default
         return c;
     }

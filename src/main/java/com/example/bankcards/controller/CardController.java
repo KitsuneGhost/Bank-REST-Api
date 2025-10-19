@@ -14,6 +14,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
 
@@ -79,9 +80,9 @@ public class CardController {
             @RequestParam(required = false) BigDecimal minBalance,
             @RequestParam(required = false) BigDecimal maxBalance,
             @RequestParam(required = false)
-            @DateTimeFormat(pattern = "yyyy-MM") YearMonth minDate,
+            @DateTimeFormat(pattern = "yyyy-MM") LocalDate minDate,
             @RequestParam(required = false)
-            @DateTimeFormat(pattern = "yyyy-MM") YearMonth maxDate,
+            @DateTimeFormat(pattern = "yyyy-MM") LocalDate maxDate,
             @RequestParam(required = false) String status) {
 
         var cards = cardService.filterCards(userId, minBalance, maxBalance, minDate, maxDate, status);

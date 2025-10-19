@@ -9,7 +9,6 @@ import com.example.bankcards.security.CustomUserDetails;
 import com.example.bankcards.security.Role;
 import com.example.bankcards.security.JwtUtils;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;

@@ -2,13 +2,12 @@ package com.example.bankcards.entity;
 
 import com.example.bankcards.util.converter.PanEncryptConverter;
 import com.example.bankcards.util.encryptors.AttributeEncryptor;
-import com.example.bankcards.util.converter.YearMonthDateAttributeConverter;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 
 import java.math.BigDecimal;
-import java.time.YearMonth;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "cards")
@@ -26,9 +25,8 @@ public class CardEntity {
     @Column(nullable = false, unique = true)
     private String cardNumber;
 
-    @Convert(converter = YearMonthDateAttributeConverter.class)
-    @Column(nullable = false)
-    private YearMonth expirationDate;
+    @Column(nullable = false, name = "expiry_date")
+    private LocalDate expirationDate;
 
     @Convert(converter = AttributeEncryptor.class)
     @Column(nullable = false)
@@ -47,7 +45,7 @@ public class CardEntity {
 
     public CardEntity() {}
 
-    public CardEntity(long id, UserEntity user, String cardNumber, YearMonth expirationDate,
+    public CardEntity(long id, UserEntity user, String cardNumber, LocalDate expirationDate,
                       String cvv, String status, BigDecimal balance, String pin) {
         this.id = id;
         this.user = user;
@@ -68,8 +66,8 @@ public class CardEntity {
     public String getCardNumber() {return cardNumber;}
     public void setCardNumber(String cardNumber) {this.cardNumber = cardNumber;}
 
-    public YearMonth getExpirationDate() {return expirationDate;}
-    public void setExpirationDate(YearMonth expirationDate) {this.expirationDate = expirationDate;}
+    public LocalDate getExpirationDate() {return expirationDate;}
+    public void setExpirationDate(LocalDate expirationDate) {this.expirationDate = expirationDate;}
 
     public String getCvv() {return cvv;}
     public void setCvv(String cvv) {this.cvv = cvv;}

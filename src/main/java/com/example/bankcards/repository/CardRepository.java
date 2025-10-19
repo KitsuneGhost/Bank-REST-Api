@@ -5,8 +5,7 @@ import com.example.bankcards.entity.UserEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.math.BigDecimal;
-import java.time.YearMonth;
-import java.util.Date;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,11 +23,11 @@ public interface CardRepository extends JpaRepository<CardEntity, Long> {
 
     List<CardEntity> findByBalanceBetween(BigDecimal minBalance, BigDecimal maxBalance);
 
-    List<CardEntity> findByExpirationDateBefore(YearMonth date);
+    List<CardEntity> findByExpirationDateBefore(LocalDate date);
 
-    List<CardEntity> findByExpirationDateAfter(YearMonth date);
+    List<CardEntity> findByExpirationDateAfter(LocalDate date);
 
-    List<CardEntity> findByExpirationDateBetween(YearMonth minDate, YearMonth maxDate);
+    List<CardEntity> findByExpirationDateBetween(LocalDate minDate, LocalDate maxDate);
 
     List<CardEntity> findAllByStatus(String status);
 
@@ -42,11 +41,11 @@ public interface CardRepository extends JpaRepository<CardEntity, Long> {
 
     List<CardEntity> findByUser_IdAndBalanceLessThan(Long user_Id, BigDecimal max);
 
-    List<CardEntity> findByUser_IdAndExpirationDateBefore(Long user_Id, YearMonth date);
+    List<CardEntity> findByUser_IdAndExpirationDateBefore(Long user_Id, LocalDate date);
 
-    List<CardEntity> findByUser_IdAndExpirationDateAfter(Long user_Id, YearMonth date);
+    List<CardEntity> findByUser_IdAndExpirationDateAfter(Long user_Id, LocalDate date);
 
-    List<CardEntity> findByUser_IdAndExpirationDateBetween(Long user_Id, YearMonth minDate, YearMonth maxDate);
+    List<CardEntity> findByUser_IdAndExpirationDateBetween(Long user_Id, LocalDate minDate, LocalDate maxDate);
 
     Optional<CardEntity> findByIdAndUser_Id(Long id, Long ownerId);
 }

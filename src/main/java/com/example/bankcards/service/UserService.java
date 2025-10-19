@@ -1,11 +1,18 @@
 package com.example.bankcards.service;
 
+import com.example.bankcards.dto.user.AdminUserUpdateRequestDTO;
+import com.example.bankcards.dto.user.UserCreateRequestDTO;
+import com.example.bankcards.dto.user.UserResponseDTO;
+import com.example.bankcards.dto.user.UserUpdateRequestDTO;
 import com.example.bankcards.entity.CardEntity;
 import com.example.bankcards.entity.UserEntity;
 import com.example.bankcards.repository.CardRepository;
 import com.example.bankcards.repository.UserRepository;
-import jakarta.transaction.Transactional;
-import org.springframework.beans.BeanUtils;
+import com.example.bankcards.security.Role;
+import com.example.bankcards.security.SecurityUtils;
+import com.example.bankcards.util.mapper.UserMapper;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,70 +27,80 @@ import java.util.Optional;
 @Service
 public class UserService {
     private final UserRepository userRepository;
-    private final CardRepository cardRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SecurityUtils security;
 
     public UserService(UserRepository userRepository, CardRepository cardRepository,
-                       PasswordEncoder passwordEncoder) {
+                       PasswordEncoder passwordEncoder, SecurityUtils security) {
         this.userRepository = userRepository;
-        this.cardRepository = cardRepository;
         this.passwordEncoder = passwordEncoder;
+        this.security = security;
     }
 
-    public List<UserEntity> getAllUsers() {
-        return userRepository.findAll();
+    @Transactional(readOnly = true)
+    public List<UserResponseDTO> getAllUsers() {
+        security.requireAdmin();
+        return userRepository.findAll().stream()
+                .map(UserMapper::toResponse)
+                .toList();
     }
 
-    public UserEntity registerUser(UserEntity user) {
-        String encodedPassword = passwordEncoder.encode(user.getPassword());
-        user.setPassword(encodedPassword);
-        return userRepository.save(user);
+
+    @Transactional(readOnly = true)
+    public UserResponseDTO getUserById(Long id) {
+        security.requireSelfOrAdmin(id);
+        UserEntity u = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
+        return UserMapper.toResponse(u);
+    }
+
+    @Transactional(readOnly = true)
+    public UserResponseDTO getMe() {
+        return UserMapper.toResponse(security.requireCurrentUser());
     }
 
     @Transactional
-    public UserEntity updateUser(Long id, UserEntity updUser) {
-        UserEntity existingUser = userRepository.findById(id).orElseThrow(
-                () -> new RuntimeException("User Not Found"));
-
-        BeanUtils.copyProperties(updUser, existingUser, "id");
-
-        return userRepository.save(existingUser);
+    public UserResponseDTO createUser(UserCreateRequestDTO dto) {
+        if (!security.isAdmin()) throw new AccessDeniedException("Access denied");
+        UserEntity u = UserMapper.toEntity(dto);
+        u.setPassword(passwordEncoder.encode(dto.password()));
+        // default role
+        u.setRoles(java.util.Set.of(Role.ROLE_USER));
+        userRepository.save(u);
+        return UserMapper.toResponse(u);
     }
 
+    @Transactional
+    public UserResponseDTO updateMe(UserUpdateRequestDTO dto) {
+        var me = security.requireCurrentUser();
+        UserMapper.applyUserUpdate(dto, me);
+        if (dto.password() != null) {
+            me.setPassword(passwordEncoder.encode(dto.password()));
+        }
+        userRepository.save(me);
+        return UserMapper.toResponse(me);
+    }
+
+    @Transactional
+    public UserResponseDTO adminUpdateUser(Long id, AdminUserUpdateRequestDTO dto) {
+        if (!security.isAdmin()) throw new AccessDeniedException("Access denied");
+        UserEntity u = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
+        UserMapper.applyAdminUpdate(dto, u);
+        if (dto.password() != null) {
+            u.setPassword(passwordEncoder.encode(dto.password()));
+        }
+        userRepository.save(u);
+        return UserMapper.toResponse(u);
+    }
+
+    @Transactional
     public void deleteUser(Long id) {
+        if (!security.isAdmin()) throw new AccessDeniedException("Access denied");
+        if (!userRepository.existsById(id)) {
+            throw new IllegalArgumentException("User not found: " + id);
+        }
         userRepository.deleteById(id);
-    }
-
-    public UserEntity findById(Long id) {
-        return userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-    }
-
-    public UserEntity findByUsername(String username) {
-        return userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User Not Found"));
-    }
-
-    public List<UserEntity> findByFullName(String fullName) {
-        return userRepository.findByFullName(fullName);
-    }
-
-    public Optional<UserEntity> findByEmail(String email) {
-        return userRepository.findByEmail(email);
-    }
-
-    public UserEntity findByCard(CardEntity card) {
-        return userRepository.findByCards(card)
-                .orElseThrow(() -> new RuntimeException("Card not found"));
-    }
-
-    public UserEntity findByCardsNumber(String cardNumber) {
-        return userRepository.findByCardsCardNumber(cardNumber)
-                .orElseThrow(() -> new RuntimeException("Card not found"));
-    }
-
-    public List<UserEntity> findUsersWithNamePart(String namePart) {
-        return userRepository.findByFullNameContainingIgnoreCase(namePart);
     }
 
     public UserEntity getCurrentUserEntity() {
@@ -96,21 +113,5 @@ public class UserService {
         String username = auth.getName(); // this is typically the email or username
         return userRepository.findByEmail(username)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
-    }
-
-    public UserEntity addCardToUser(Long userId, CardEntity card) {
-        UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        user.addCard(card);
-        return userRepository.save(user);
-    }
-
-    public UserEntity removeCardFromUser(Long userId, Long cardId) {
-        UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        CardEntity card = cardRepository.findById(cardId)
-                .orElseThrow(() -> new RuntimeException("Card not found"));
-        user.removeCard(card);
-        return userRepository.save(user);
     }
 }

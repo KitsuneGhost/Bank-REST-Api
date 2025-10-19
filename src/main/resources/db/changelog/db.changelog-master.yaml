@@ -1,0 +1,6 @@
+databaseChangeLog:
+  - include: { file: db/changelog/001-users.yaml }
+  - include: { file: db/changelog/002-user-roles.yaml }
+  - include: { file: db/changelog/003-cards.yaml }
+  - include: { file: db/changelog/004-cards-created-at.yaml }    # add a created_at column for pagination
+  - include: { file: db/changelog/005-indexes.yaml }             # indexes for queries/pagination

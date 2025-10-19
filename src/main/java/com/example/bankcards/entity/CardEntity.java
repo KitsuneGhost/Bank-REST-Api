@@ -47,8 +47,8 @@ public class CardEntity {
 
     public CardEntity() {}
 
-    public CardEntity(long id, UserEntity user, String cardNumber, String holderName,
-                      YearMonth expirationDate, String cvv, String status, BigDecimal balance, String pin) {
+    public CardEntity(long id, UserEntity user, String cardNumber, YearMonth expirationDate,
+                      String cvv, String status, BigDecimal balance, String pin) {
         this.id = id;
         this.user = user;
         this.cardNumber = cardNumber;

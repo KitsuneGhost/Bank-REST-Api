@@ -1,13 +1,23 @@
 package com.example.bankcards.controller;
 
+import com.example.bankcards.dto.card.CardCreateRequestDTO;
+import com.example.bankcards.dto.card.CardResponseDTO;
+import com.example.bankcards.dto.card.CardUpdateRequestDTO;
 import com.example.bankcards.entity.CardEntity;
 import com.example.bankcards.service.CardService;
+import com.example.bankcards.util.mapper.CardMapper;
+import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Date;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
+@Validated
 @RestController
 @RequestMapping("/cards")
 public class CardController {
@@ -18,48 +28,63 @@ public class CardController {
     }
 
     @GetMapping
-    public List<CardEntity> getAllCards() {
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<CardResponseDTO> getAllCards() {
         return cardService.getAllCards();
     }
 
-    @PostMapping("/users/{userId}")
-    public CardEntity createCardForUser(
-            @PathVariable Long userId,
-            @RequestBody CardEntity card) {
-        return cardService.createCardForUser(userId, card);
+    // Create card for the authenticated user
+    @PostMapping("/me/create")
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    public CardResponseDTO createForMe(@Valid @RequestBody CardCreateRequestDTO req) {
+        CardEntity saved = cardService.createForCurrentUser(req);
+        return CardMapper.toResponse(saved);
+    }
+
+    // Admin: create a card for a specific user
+    @PostMapping("/users/{userId}/create")
+    @PreAuthorize("hasRole('ADMIN')")
+    public CardResponseDTO createForUser(@PathVariable Long userId, @Valid @RequestBody CardCreateRequestDTO req) {
+        CardEntity saved = cardService.createForUser(userId, req);
+        return CardMapper.toResponse(saved);
+    }
+
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    public CardResponseDTO getById(@PathVariable Long id) {
+        CardEntity c = cardService.getByIdAuthorized(id);
+        return CardMapper.toResponse(c);
     }
 
     @PutMapping("/{id}")
-    public CardEntity updateCard(@PathVariable Long id, @RequestBody CardEntity card) {
-        return cardService.updateCard(id, card);
+    @PreAuthorize("hasRole('ADMIN')")
+    public CardResponseDTO updateCard(
+            @PathVariable Long id,
+            @jakarta.validation.Valid @RequestBody CardUpdateRequestDTO req) {
+        CardEntity updated = cardService.updateCard(id, req); // service applies changes safely
+        return CardMapper.toResponse(updated);
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteCard(@PathVariable Long id) {
         cardService.deleteCard(id);
     }
 
-    @GetMapping("/{id}")
-    public CardEntity getCardById(@PathVariable Long id) {
-        return cardService.findById(id);
-    }
-
-    @GetMapping("/search/{cardNumber}")
-    public CardEntity getCardByNumber(@PathVariable String cardNumber) {
-        return cardService.findByCardNumber(cardNumber);
-    }
-
     @GetMapping("/filter")
-    public List<CardEntity> filterCards(
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public List<CardResponseDTO> filterCards(
             @RequestParam(required = false) Long userId,
-            @RequestParam(required = false) Float minBalance,
-            @RequestParam(required = false) Float maxBalance,
+            @RequestParam(required = false) BigDecimal minBalance,
+            @RequestParam(required = false) BigDecimal maxBalance,
             @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date minDate,
+            @DateTimeFormat(pattern = "yyyy-MM") LocalDate minDate,
             @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date maxDate,
+            @DateTimeFormat(pattern = "yyyy-MM") LocalDate maxDate,
             @RequestParam(required = false) String status) {
 
-        return cardService.filterCards(userId, minBalance, maxBalance, minDate, maxDate, status);
+        var cards = cardService.filterCards(userId, minBalance, maxBalance, minDate, maxDate, status);
+        return cards.stream().map(CardMapper::toResponse).toList();
     }
 }

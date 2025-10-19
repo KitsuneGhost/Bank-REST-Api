@@ -1,9 +1,16 @@
 package com.example.bankcards.controller;
 
+import com.example.bankcards.dto.user.AdminUserUpdateRequestDTO;
+import com.example.bankcards.dto.user.UserCreateRequestDTO;
+import com.example.bankcards.dto.user.UserResponseDTO;
+import com.example.bankcards.dto.user.UserUpdateRequestDTO;
 import com.example.bankcards.entity.CardEntity;
 import com.example.bankcards.entity.UserEntity;
 import com.example.bankcards.service.CardService;
 import com.example.bankcards.service.UserService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,77 +20,59 @@ import java.util.List;
 @RequestMapping("/users")
 public class UserController {
     private final UserService userService;
-    private final CardService cardService;
 
     public UserController(UserService userService, CardService cardService) {
         this.userService = userService;
-        this.cardService = cardService;
     }
 
+    /** ADMIN: list all users */
     @GetMapping
-    public List<UserEntity> getAllUsers() {
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<UserResponseDTO> getAllUsers() {
         return userService.getAllUsers();
     }
 
-    @PostMapping
-    public UserEntity registerUser(@RequestBody UserEntity user) {
-        return userService.registerUser(user);
-    }
-
-    @PutMapping("/{id}")
-    public UserEntity updateUser(@PathVariable Long id, @RequestBody UserEntity updUser) {
-        return userService.updateUser(id, updUser);
-    }
-
-    @DeleteMapping("/{id}")
-    public void deleteUser(@PathVariable Long id) {
-        userService.deleteUser(id);
-    }
-
+    /** ADMIN or self: get one by id */
     @GetMapping("/{id}")
-    public UserEntity getUserById(@PathVariable Long id) {
-        return userService.findById(id);
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    public UserResponseDTO getById(@PathVariable Long id) {
+        return userService.getUserById(id);
     }
 
-    @GetMapping("/filter")
-    public List<UserEntity> filterUsers(@RequestParam(required = false) String fullName,
-                                        @RequestParam(required = false) String namePart) {
-        if (fullName != null) return userService.findByFullName(fullName);
-        if (namePart != null) return userService.findUsersWithNamePart(namePart);
-        return userService.getAllUsers();
+    /** SELF: convenient 'me' endpoint */
+    @GetMapping("/me")
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    public UserResponseDTO getMe() {
+        return userService.getMe();
     }
 
-    @GetMapping("/filter/username/{username}")
-    public UserEntity getUserByUsername(@PathVariable String username) {
-        return userService.findByUsername(username);
+    /** ADMIN: create user */
+    @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    @ResponseStatus(HttpStatus.CREATED)
+    public UserResponseDTO create(@Valid @RequestBody UserCreateRequestDTO req) {
+        return userService.createUser(req);
     }
 
-    @GetMapping("/filter/email/{email}")
-    public UserEntity getUserByEmail(@PathVariable String email) {
-        return userService.findByEmail(email);
+    /** SELF: update my profile */
+    @PutMapping("/me")
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    public UserResponseDTO updateMe(@Valid @RequestBody UserUpdateRequestDTO req) {
+        return userService.updateMe(req);
     }
 
-    @GetMapping("/filter/cardNumber/{cardNumber}")
-    public UserEntity getUserByCardNumber(@PathVariable String cardNumber) {
-        return userService.findByCardsNumber(cardNumber);
+    /** ADMIN: update any user */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public UserResponseDTO adminUpdate(@PathVariable Long id, @Valid @RequestBody AdminUserUpdateRequestDTO req) {
+        return userService.adminUpdateUser(id, req);
     }
 
-    @GetMapping("/{id}/cards")
-    public List<CardEntity> getUserCards(@PathVariable Long id) {
-        return cardService.findAllByUserId(id);
-    }
-
-    public boolean isAdmin() {
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        return auth.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-    }
-
-    public String currentUsername() {
-        return SecurityContextHolder.getContext().getAuthentication().getName();
-    }
-
-    public Long currentUserId() {
-        return userService.findByUsername(currentUsername()).getId();
+    /** ADMIN: delete user */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long id) {
+        userService.deleteUser(id);
     }
 }

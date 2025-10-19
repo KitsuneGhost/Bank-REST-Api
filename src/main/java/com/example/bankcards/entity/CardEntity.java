@@ -1,10 +1,13 @@
 package com.example.bankcards.entity;
 
-import com.example.bankcards.util.AttributeEncryptor;
+import com.example.bankcards.util.converter.PanEncryptConverter;
+import com.example.bankcards.util.encryptors.AttributeEncryptor;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Min;
 
-import java.util.Date;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "cards")
@@ -18,12 +21,12 @@ public class CardEntity {
     @JsonBackReference
     private UserEntity user;
 
-    @Convert(converter = AttributeEncryptor.class)
+    @Convert(converter = PanEncryptConverter.class)
     @Column(nullable = false, unique = true)
     private String cardNumber;
 
-    @Column(nullable = false)
-    private Date expirationDate;
+    @Column(nullable = false, name = "expiry_date")
+    private LocalDate expirationDate;
 
     @Convert(converter = AttributeEncryptor.class)
     @Column(nullable = false)
@@ -32,8 +35,9 @@ public class CardEntity {
     @Column(nullable = false)
     private String status;
 
-    @Column(nullable = false)
-    private float balance;
+    @Min(0)
+    @Column(nullable = false, precision = 19, scale = 2)
+    private BigDecimal balance;
 
     @Convert(converter = AttributeEncryptor.class)
     @Column(nullable = false)
@@ -41,8 +45,8 @@ public class CardEntity {
 
     public CardEntity() {}
 
-    public CardEntity(long id, UserEntity user, String cardNumber, String holderName,
-                      Date expirationDate, String cvv, String status, float balance, String pin) {
+    public CardEntity(long id, UserEntity user, String cardNumber, LocalDate expirationDate,
+                      String cvv, String status, BigDecimal balance, String pin) {
         this.id = id;
         this.user = user;
         this.cardNumber = cardNumber;
@@ -62,8 +66,8 @@ public class CardEntity {
     public String getCardNumber() {return cardNumber;}
     public void setCardNumber(String cardNumber) {this.cardNumber = cardNumber;}
 
-    public Date getExpirationDate() {return expirationDate;}
-    public void setExpirationDate(Date expirationDate) {this.expirationDate = expirationDate;}
+    public LocalDate getExpirationDate() {return expirationDate;}
+    public void setExpirationDate(LocalDate expirationDate) {this.expirationDate = expirationDate;}
 
     public String getCvv() {return cvv;}
     public void setCvv(String cvv) {this.cvv = cvv;}
@@ -71,8 +75,8 @@ public class CardEntity {
     public String getStatus() {return status;}
     public void setStatus(String status) {this.status = status;}
 
-    public float getBalance() {return balance;}
-    public void setBalance(float balance) {this.balance = balance;}
+    public BigDecimal getBalance() {return balance;}
+    public void setBalance(BigDecimal balance) {this.balance = balance;}
 
     public String getPin() {return pin;}
 

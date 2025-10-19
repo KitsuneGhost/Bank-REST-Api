@@ -1,10 +1,14 @@
 package com.example.bankcards.controller;
 
+import com.example.bankcards.dto.auth.LoginRequest;
+import com.example.bankcards.dto.auth.LoginResponse;
+import com.example.bankcards.dto.auth.RegisterRequest;
 import com.example.bankcards.entity.UserEntity;
 import com.example.bankcards.repository.UserRepository;
 import com.example.bankcards.security.CustomUserDetails;
 import com.example.bankcards.security.Role;
 import com.example.bankcards.security.JwtUtils;
+import jakarta.validation.Valid;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -35,30 +39,23 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public Map<String, String> login(@RequestBody Map<String, String> body) {
-        String username = body.get("username");
-        String password = body.get("password");
-
+    public LoginResponse login(@Valid @RequestBody LoginRequest req) {
         Authentication auth = authManager.authenticate(
-                new UsernamePasswordAuthenticationToken(username, password)
-        );
-
-        CustomUserDetails userDetails = (CustomUserDetails) auth.getPrincipal();
-        String token = jwtUtils.generateToken(userDetails);
-
-        return Map.of("token", token);
+                new UsernamePasswordAuthenticationToken(req.username(), req.password()));
+        CustomUserDetails cud = (CustomUserDetails) auth.getPrincipal();
+        String token = jwtUtils.generateToken(cud);
+        return new LoginResponse(token, 24*60*60*1000);
     }
 
     @PostMapping("/register")
-    public Map<String, Object> register(@RequestBody Map<String, String> body) {
-        UserEntity user = new UserEntity();
-        user.setUsername(body.get("username"));
-        user.setPassword(passwordEncoder.encode(body.get("password")));
-        user.setEmail(body.get("email"));
-        user.setFullName(body.get("fullName"));
+    public Map<String, Object> register(@Valid @RequestBody RegisterRequest req) {
+        var user = new UserEntity();
+        user.setUsername(req.username());
+        user.setEmail(req.email());
+        user.setFullName(req.fullName());
+        user.setPassword(passwordEncoder.encode(req.password()));
         user.setRoles(Set.of(Role.ROLE_USER));
-
         userRepository.save(user);
-        return Map.of("message", "User created");
+        return Map.of("message","User created");
     }
 }

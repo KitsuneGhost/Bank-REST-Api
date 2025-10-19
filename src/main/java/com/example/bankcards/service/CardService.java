@@ -2,6 +2,7 @@ package com.example.bankcards.service;
 
 import com.example.bankcards.dto.card.CardCreateRequestDTO;
 import com.example.bankcards.dto.card.CardResponseDTO;
+import com.example.bankcards.dto.card.CardUpdateRequestDTO;
 import com.example.bankcards.entity.CardEntity;
 import com.example.bankcards.entity.UserEntity;
 import com.example.bankcards.repository.CardRepository;
@@ -9,7 +10,6 @@ import com.example.bankcards.repository.UserRepository;
 import com.example.bankcards.util.SecurityUtils;
 import com.example.bankcards.util.mapper.CardMapper;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.beans.BeanUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -17,7 +17,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.YearMonth;
-import java.util.Date;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
@@ -37,11 +37,19 @@ public class CardService {
         this.currentUserService = currentUserService;
     }
 
-    public List<CardEntity> getAllCards() {
+    @Transactional(readOnly = true)
+    public List<CardResponseDTO> getAllCards() {
+        List<CardEntity> cards;
+
         if (security.isAdmin()) {
-            return cardRepository.findAll();
+            cards = cardRepository.findAll();
+        } else {
+            cards = cardRepository.findAllByUser_Id(security.currentUserId());
         }
-        return cardRepository.findAllByUser_Id(security.currentUserId());
+
+        return cards.stream()
+                .map(CardMapper::toResponse)
+                .toList();
     }
 
     @Transactional
@@ -90,15 +98,18 @@ public class CardService {
     }
 
     @Transactional
-    public CardEntity updateCard(Long id, CardEntity updCard) {
-        CardEntity existingCard = cardRepository.findById(id).orElseThrow(
-                () -> new RuntimeException("Card was Not Found")
-        );
+    public CardEntity updateCard(Long id, CardUpdateRequestDTO req) {
+        CardEntity c = cardRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Card not found: " + id));
 
-        BeanUtils.copyProperties(updCard, existingCard, "id", "cardNumber", "user", "cvv",
-                "expirationDate");
-
-        return cardRepository.save(existingCard);
+        if (req.expiry() != null) {
+            var fmt = DateTimeFormatter.ofPattern("MM/yy");
+            c.setExpirationDate(YearMonth.parse(req.expiry(), fmt));
+        }
+        if (req.status() != null) {
+            c.setStatus(req.status());
+        }
+        return cardRepository.save(c);
     }
 
     public void deleteCard(Long id) {

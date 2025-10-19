@@ -2,19 +2,22 @@ package com.example.bankcards.controller;
 
 import com.example.bankcards.dto.card.CardCreateRequestDTO;
 import com.example.bankcards.dto.card.CardResponseDTO;
+import com.example.bankcards.dto.card.CardUpdateRequestDTO;
 import com.example.bankcards.entity.CardEntity;
 import com.example.bankcards.service.CardService;
 import com.example.bankcards.util.mapper.CardMapper;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.YearMonth;
-import java.util.Date;
 import java.util.List;
 
+@Validated
 @RestController
 @RequestMapping("/cards")
 public class CardController {
@@ -25,7 +28,8 @@ public class CardController {
     }
 
     @GetMapping
-    public List<CardEntity> getAllCards() {
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<CardResponseDTO> getAllCards() {
         return cardService.getAllCards();
     }
 
@@ -53,18 +57,19 @@ public class CardController {
     }
 
     @PutMapping("/{id}")
-    public CardEntity updateCard(@PathVariable Long id, @Valid @RequestBody CardEntity card) {
-        return cardService.updateCard(id, card);
+    @PreAuthorize("hasRole('ADMIN')")
+    public CardResponseDTO updateCard(
+            @PathVariable Long id,
+            @jakarta.validation.Valid @RequestBody CardUpdateRequestDTO req) {
+        CardEntity updated = cardService.updateCard(id, req); // service applies changes safely
+        return CardMapper.toResponse(updated);
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteCard(@PathVariable Long id) {
         cardService.deleteCard(id);
-    }
-
-    @GetMapping("/search/{cardNumber}")
-    public CardEntity getCardByNumber(@Valid @PathVariable String cardNumber) {
-        return cardService.findByCardNumber(cardNumber);
     }
 
     @GetMapping("/filter")

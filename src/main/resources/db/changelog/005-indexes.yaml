@@ -1,0 +1,27 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-indexes
+      author: you
+      changes:
+        - createIndex:
+            tableName: cards
+            indexName: idx_cards_user_created_id
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: created_at
+              - column:
+                  name: id
+        - createIndex:
+            tableName: user_roles
+            indexName: idx_user_roles_user
+            columns:
+              - column:
+                  name: user_id
+        - createIndex:
+            tableName: users
+            indexName: idx_users_email
+            columns:
+              - column:
+                  name: email

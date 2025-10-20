@@ -1,0 +1,22 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-cards-add-created-at
+      author: you
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            columnExists:
+              tableName: cards
+              columnName: created_at
+      changes:
+        - addColumn:
+            tableName: cards
+            columns:
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()

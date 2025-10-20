@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
@@ -42,6 +43,12 @@ public class CardEntity {
     @Convert(converter = AttributeEncryptor.class)
     @Column(nullable = false)
     private String pin;
+
+    @Column(name = "created_at", updatable = false, insertable = false)
+    private Instant createdAt;
+
+    @Column(name = "updated_at", insertable = false)
+    private Instant updatedAt;
 
     public CardEntity() {}
 

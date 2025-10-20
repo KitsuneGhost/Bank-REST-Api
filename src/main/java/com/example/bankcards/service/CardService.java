@@ -108,38 +108,62 @@ public class CardService {
         return cardRepository.findAll(spec, pageable);
     }
 
-    public Page<CardEntity> filterMine(
-            String q,
-            BigDecimal minBalance,
-            BigDecimal maxBalance,
-            LocalDate minDate,
-            LocalDate maxDate,
-            String statusCsv,
-            Pageable pageable
-    ) {
-        Long currentUserId = userService.getCurrentUserEntity().getId();
-        Specification<CardEntity> spec = (r, qy, cb) -> cb.equal(r.get("user").get("id"), currentUserId);
-
-        if (q != null && !q.isBlank()) {
-            String like = "%" + q.trim().toLowerCase() + "%";
-            // If no last4 column, you can drop to only holder name via join
-            spec = spec.and((r, qqq, cb2) -> cb2.like(cb2.lower(r.get("last4")), like));
-        }
-        if (minBalance != null) spec = spec.and((r, qy, cb2) -> cb2.ge(r.get("balance"), minBalance));
-        if (maxBalance != null) spec = spec.and((r, qy, cb2) -> cb2.le(r.get("balance"), maxBalance));
-        if (minDate != null) spec = spec.and((r, qy, cb2) -> cb2.greaterThanOrEqualTo(r.get("expirationDate"), minDate));
-        if (maxDate != null) spec = spec.and((r, qy, cb2) -> cb2.lessThanOrEqualTo(r.get("expirationDate"), maxDate));
-        if (statusCsv != null && !statusCsv.isBlank()) {
-            Set<String> statuses = Arrays.stream(statusCsv.split(","))
-                    .map(String::trim).filter(s -> !s.isEmpty()).collect(Collectors.toSet());
-            spec = spec.and((r, qy, cb2) -> r.get("status").in(statuses));
-        }
-        return cardRepository.findAll(spec, pageable);
+    @Transactional(readOnly = true)
+    public Page<CardSummaryDTO> filterMine(CardFilter filter, Pageable pageable) {
+        return filterForUser(security.currentUserId(), filter, pageable);
     }
 
     public Page<CardSummaryDTO> filterForUser(Long userId, CardFilter filter, Pageable pageable) {
         Specification<CardEntity> spec = CardSpecs.build(userId, filter);
         return cardRepository.findAll(spec, pageable).map(CardSummaryDTO::from);
+    }
+
+    @Transactional
+    public void transferBetweenMyCards(Long fromCardId, Long toCardId, BigDecimal amount) {
+        if (fromCardId == null || toCardId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Both fromCardId and toCardId are required");
+        }
+        if (fromCardId.equals(toCardId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot transfer to the same card");
+        }
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Amount must be positive");
+        }
+
+        Long me = security.currentUserId();
+
+        // Load both cards, ensuring they belong to current user
+        CardEntity from = cardRepository.findByIdAndUser_Id(fromCardId, me)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Source card not found or not yours"));
+        CardEntity to = cardRepository.findByIdAndUser_Id(toCardId, me)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Target card not found or not yours"));
+
+        if (!"ACTIVE".equalsIgnoreCase(from.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Source card is not ACTIVE");
+        }
+        if (!"ACTIVE".equalsIgnoreCase(to.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Target card is not ACTIVE");
+        }
+
+        if (from.getBalance() == null) from.setBalance(BigDecimal.ZERO);
+        if (to.getBalance() == null) to.setBalance(BigDecimal.ZERO);
+
+        if (from.getBalance().compareTo(amount) < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Insufficient funds");
+        }
+
+        // Update balances (atomic thanks to @Transactional)
+        from.setBalance(from.getBalance().subtract(amount));
+        to.setBalance(to.getBalance().add(amount));
+
+        // Save in a stable order to avoid lock thrash
+        if (from.getId() < to.getId()) {
+            cardRepository.save(from);
+            cardRepository.save(to);
+        } else {
+            cardRepository.save(to);
+            cardRepository.save(from);
+        }
     }
 
     /* ========================= READ ========================= */

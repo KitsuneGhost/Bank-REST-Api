@@ -1,13 +1,11 @@
 package com.example.bankcards.controller;
 
-import com.example.bankcards.dto.card.CardCreateRequestDTO;
-import com.example.bankcards.dto.card.CardResponseDTO;
-import com.example.bankcards.dto.card.CardUpdateRequestDTO;
-import com.example.bankcards.dto.card.PageResponse;
+import com.example.bankcards.dto.card.*;
 import com.example.bankcards.entity.CardEntity;
 import com.example.bankcards.service.CardService;
 import com.example.bankcards.util.mapper.CardMapper;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -59,24 +57,8 @@ public class CardController {
 
     @GetMapping("/me")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
-    public PageResponse<CardResponseDTO> listMinePaged(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "12") int size,
-            @RequestParam(defaultValue = "createdAt,desc") String sort,
-            @RequestParam(required = false) BigDecimal minBalance,
-            @RequestParam(required = false) BigDecimal maxBalance,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate minDate,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate maxDate,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String q
-    ) {
-        Pageable pageable = PageRequest.of(page, Math.min(size, 100), parseSort(sort));
-        var pageRes = cardService
-                .filterMine(q, minBalance, maxBalance, minDate, maxDate, status, pageable)
-                .map(CardMapper::toResponse);
-        return PageResponse.from(pageRes, sort);
+    public Page<CardSummaryDTO> myCards(CardFilter filter, Pageable pageable) {
+        return cardService.filterMine(filter, pageable);
     }
 
     // Create card for the authenticated user
@@ -94,6 +76,13 @@ public class CardController {
         CardEntity saved = cardService.createForUser(userId, req);
         return CardMapper.toResponse(saved);
     }
+
+    @PostMapping("/me/transfers")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void transfer(@RequestBody @Valid TransferRequestDTO req) {
+        cardService.transferBetweenMyCards(req.fromCardId(), req.toCardId(), req.amount());
+    }
+
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")

@@ -3,10 +3,14 @@ package com.example.bankcards.controller;
 import com.example.bankcards.dto.card.CardCreateRequestDTO;
 import com.example.bankcards.dto.card.CardResponseDTO;
 import com.example.bankcards.dto.card.CardUpdateRequestDTO;
+import com.example.bankcards.dto.card.PageResponse;
 import com.example.bankcards.entity.CardEntity;
 import com.example.bankcards.service.CardService;
 import com.example.bankcards.util.mapper.CardMapper;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,14 +27,56 @@ import java.util.List;
 public class CardController {
     private final CardService cardService;
 
+    private static final java.util.Set<String> SORT_WHITELIST =
+            java.util.Set.of("id","status","expirationDate","balance","createdAt","updatedAt");
+
     public CardController (CardService cardService) {
         this.cardService = cardService;
     }
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public List<CardResponseDTO> getAllCards() {
-        return cardService.getAllCards();
+    public PageResponse<CardResponseDTO> listAllPaged(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size,
+            @RequestParam(defaultValue = "createdAt,desc") String sort,
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) BigDecimal minBalance,
+            @RequestParam(required = false) BigDecimal maxBalance,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate minDate,  // yyyy-MM-dd
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate maxDate,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String q
+    ) {
+        Pageable pageable = PageRequest.of(page, Math.min(size, 100), parseSort(sort));
+        var pageRes = cardService
+                .filterAll(q, userId, minBalance, maxBalance, minDate, maxDate, status, pageable)
+                .map(CardMapper::toResponse);
+        return PageResponse.from(pageRes, sort);
+    }
+
+    @GetMapping("/me")
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    public PageResponse<CardResponseDTO> listMinePaged(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size,
+            @RequestParam(defaultValue = "createdAt,desc") String sort,
+            @RequestParam(required = false) BigDecimal minBalance,
+            @RequestParam(required = false) BigDecimal maxBalance,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate minDate,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate maxDate,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String q
+    ) {
+        Pageable pageable = PageRequest.of(page, Math.min(size, 100), parseSort(sort));
+        var pageRes = cardService
+                .filterMine(q, minBalance, maxBalance, minDate, maxDate, status, pageable)
+                .map(CardMapper::toResponse);
+        return PageResponse.from(pageRes, sort);
     }
 
     // Create card for the authenticated user
@@ -86,5 +132,22 @@ public class CardController {
 
         var cards = cardService.filterCards(userId, minBalance, maxBalance, minDate, maxDate, status);
         return cards.stream().map(CardMapper::toResponse).toList();
+    }
+
+    /** Accepts "field,asc" or "field,desc" and also multiple: "status,asc;expirationDate,desc" */
+    private Sort parseSort(String sort) {
+        if (sort == null || sort.isBlank()) {
+            return Sort.by(Sort.Order.desc("createdAt"));
+        }
+        java.util.List<Sort.Order> orders = new java.util.ArrayList<>();
+        for (String token : sort.split(";")) {
+            String[] parts = token.split(",", 2);
+            String field = parts[0].trim();
+            if (!SORT_WHITELIST.contains(field)) continue; // ignore unknown/unsafe fields
+            Sort.Direction dir = (parts.length > 1 && "asc".equalsIgnoreCase(parts[1].trim()))
+                    ? Sort.Direction.ASC : Sort.Direction.DESC;
+            orders.add(new Sort.Order(dir, field));
+        }
+        return orders.isEmpty() ? Sort.by(Sort.Order.desc("createdAt")) : Sort.by(orders);
     }
 }

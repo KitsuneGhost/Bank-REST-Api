@@ -1,14 +1,17 @@
 package com.example.bankcards.service;
 
-import com.example.bankcards.dto.card.CardCreateRequestDTO;
-import com.example.bankcards.dto.card.CardResponseDTO;
-import com.example.bankcards.dto.card.CardUpdateRequestDTO;
+import com.example.bankcards.dto.card.*;
 import com.example.bankcards.entity.CardEntity;
 import com.example.bankcards.entity.UserEntity;
 import com.example.bankcards.repository.CardRepository;
 import com.example.bankcards.repository.UserRepository;
+import com.example.bankcards.repository.spec.CardSpecs;
 import com.example.bankcards.security.SecurityUtils;
 import com.example.bankcards.util.mapper.CardMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -20,7 +23,10 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class CardService {
@@ -48,6 +54,93 @@ public class CardService {
         this.security = securityUtils;
         this.userService = userService;
         this.currentUserService = currentUserService;
+    }
+
+    /** ADMIN: filter across ALL users */
+    public Page<CardEntity> filterAll(
+            String q,
+            Long userId,
+            BigDecimal minBalance,
+            BigDecimal maxBalance,
+            LocalDate minDate,
+            LocalDate maxDate,
+            String statusCsv,
+            Pageable pageable
+    ) {
+        Specification<CardEntity> spec = (root, query, cb) -> cb.conjunction();
+
+        // q: holder name or last4 (if you added last4). Avoid encrypted PAN.
+        if (q != null && !q.isBlank()) {
+            String like = "%" + q.trim().toLowerCase() + "%";
+            spec = spec.and((r, qy, cb2) -> {
+                var userJoin = r.join("user");
+                // If you do NOT have last4 column yet, remove the second part of OR
+                return cb2.or(
+                        cb2.like(cb2.lower(userJoin.get("fullName")), like),
+                        cb2.like(cb2.lower(r.get("last4")), like)
+                );
+            });
+        }
+
+        if (userId != null) {
+            spec = spec.and((r, qy, cb2) -> cb2.equal(r.get("user").get("id"), userId));
+        }
+
+        if (minBalance != null) {
+            spec = spec.and((r, qy, cb2) -> cb2.ge(r.get("balance"), minBalance));
+        }
+        if (maxBalance != null) {
+            spec = spec.and((r, qy, cb2) -> cb2.le(r.get("balance"), maxBalance));
+        }
+
+        if (minDate != null) {
+            spec = spec.and((r, qy, cb2) -> cb2.greaterThanOrEqualTo(r.get("expirationDate"), minDate));
+        }
+        if (maxDate != null) {
+            spec = spec.and((r, qy, cb2) -> cb2.lessThanOrEqualTo(r.get("expirationDate"), maxDate));
+        }
+
+        if (statusCsv != null && !statusCsv.isBlank()) {
+            Set<String> statuses = Arrays.stream(statusCsv.split(","))
+                    .map(String::trim).filter(s -> !s.isEmpty()).collect(Collectors.toSet());
+            spec = spec.and((r, qy, cb2) -> r.get("status").in(statuses));
+        }
+
+        return cardRepository.findAll(spec, pageable);
+    }
+
+    public Page<CardEntity> filterMine(
+            String q,
+            BigDecimal minBalance,
+            BigDecimal maxBalance,
+            LocalDate minDate,
+            LocalDate maxDate,
+            String statusCsv,
+            Pageable pageable
+    ) {
+        Long currentUserId = userService.getCurrentUserEntity().getId();
+        Specification<CardEntity> spec = (r, qy, cb) -> cb.equal(r.get("user").get("id"), currentUserId);
+
+        if (q != null && !q.isBlank()) {
+            String like = "%" + q.trim().toLowerCase() + "%";
+            // If no last4 column, you can drop to only holder name via join
+            spec = spec.and((r, qqq, cb2) -> cb2.like(cb2.lower(r.get("last4")), like));
+        }
+        if (minBalance != null) spec = spec.and((r, qy, cb2) -> cb2.ge(r.get("balance"), minBalance));
+        if (maxBalance != null) spec = spec.and((r, qy, cb2) -> cb2.le(r.get("balance"), maxBalance));
+        if (minDate != null) spec = spec.and((r, qy, cb2) -> cb2.greaterThanOrEqualTo(r.get("expirationDate"), minDate));
+        if (maxDate != null) spec = spec.and((r, qy, cb2) -> cb2.lessThanOrEqualTo(r.get("expirationDate"), maxDate));
+        if (statusCsv != null && !statusCsv.isBlank()) {
+            Set<String> statuses = Arrays.stream(statusCsv.split(","))
+                    .map(String::trim).filter(s -> !s.isEmpty()).collect(Collectors.toSet());
+            spec = spec.and((r, qy, cb2) -> r.get("status").in(statuses));
+        }
+        return cardRepository.findAll(spec, pageable);
+    }
+
+    public Page<CardSummaryDTO> filterForUser(Long userId, CardFilter filter, Pageable pageable) {
+        Specification<CardEntity> spec = CardSpecs.build(userId, filter);
+        return cardRepository.findAll(spec, pageable).map(CardSummaryDTO::from);
     }
 
     /* ========================= READ ========================= */

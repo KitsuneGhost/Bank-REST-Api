@@ -2,14 +2,17 @@ package com.example.bankcards.repository;
 
 import com.example.bankcards.entity.CardEntity;
 import com.example.bankcards.entity.UserEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
-public interface CardRepository extends JpaRepository<CardEntity, Long> {
+public interface CardRepository extends JpaRepository<CardEntity, Long>, JpaSpecificationExecutor<CardEntity> {
 
     List<CardEntity> findByUser(UserEntity user);
 
@@ -30,6 +33,8 @@ public interface CardRepository extends JpaRepository<CardEntity, Long> {
     List<CardEntity> findByExpirationDateBetween(LocalDate minDate, LocalDate maxDate);
 
     List<CardEntity> findAllByStatus(String status);
+
+    Page<CardEntity> findByUserId(Long userId, Pageable pageable);
 
     List<CardEntity> findByUserAndStatus(UserEntity user, String status);
 

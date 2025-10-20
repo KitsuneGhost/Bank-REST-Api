@@ -50,6 +50,9 @@ public class CardEntity {
     @Column(name = "updated_at", insertable = false)
     private Instant updatedAt;
 
+    @Column(length = 4)
+    private String last4;
+
     public CardEntity() {}
 
     public CardEntity(long id, UserEntity user, String cardNumber, LocalDate expirationDate,
@@ -86,11 +89,20 @@ public class CardEntity {
     public void setBalance(BigDecimal balance) {this.balance = balance;}
 
     public String getPin() {return pin;}
-
     public void setPin(String pin) {this.pin = pin;}
 
     public Long getUserId() {
         return user.getId();
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public String getLast4() { return last4; }
+
+    public void setLast4(String last4) {
+        this.last4 = last4;
     }
 
     @Transient
@@ -99,20 +111,10 @@ public class CardEntity {
         return user != null ? user.getFullName() : null;
     }
 
-    @PrePersist
-    public void validateBeforeInsert() {
-        if (pin == null || pin.length() != 4) {
-            throw new IllegalArgumentException("PIN must be 4 digits");
-        }
-        if (cardNumber == null || cardNumber.isEmpty()) {
-            throw new IllegalArgumentException("Card number cannot be empty");
-        }
-    }
-
-    @PreUpdate
-    public void validateBeforeUpdate() {
-        if (pin != null && pin.length() != 4) {
-            throw new IllegalArgumentException("PIN must be 4 digits");
+    @PrePersist @PreUpdate
+    private void deriveLast4() {
+        if (cardNumber != null && cardNumber.length() >= 4) {
+            this.last4 = cardNumber.substring(cardNumber.length() - 4);
         }
     }
 }

@@ -8,6 +8,7 @@ import com.example.bankcards.entity.CardEntity;
 import com.example.bankcards.entity.UserEntity;
 import com.example.bankcards.repository.CardRepository;
 import com.example.bankcards.repository.UserRepository;
+import com.example.bankcards.security.CustomUserDetails;
 import com.example.bankcards.security.Role;
 import com.example.bankcards.security.SecurityUtils;
 import com.example.bankcards.util.mapper.UserMapper;
@@ -106,12 +107,22 @@ public class UserService {
     public UserEntity getCurrentUserEntity() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
-        if (auth == null || !auth.isAuthenticated() || auth.getPrincipal().equals("anonymousUser")) {
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not authenticated");
         }
 
-        String username = auth.getName(); // this is typically the email or username
-        return userRepository.findByEmail(username)
+        Object principal = auth.getPrincipal();
+
+        if (principal instanceof CustomUserDetails cud) {
+            Long id = cud.getId();
+            return userRepository.findById(id)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+        }
+
+        // Fallback path: auth.getName() might be username or email
+        String key = auth.getName(); // whatever you put in JWT subject
+        return userRepository.findByUsername(key)
+                .or(() -> userRepository.findByEmail(key))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
     }
 }

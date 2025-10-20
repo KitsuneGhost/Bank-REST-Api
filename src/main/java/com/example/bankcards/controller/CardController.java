@@ -49,7 +49,7 @@ public class CardController {
             @RequestParam(required = false) String q
     ) {
         Pageable pageable = PageRequest.of(page, Math.min(size, 100), parseSort(sort));
-        var pageRes = cardService
+        Page<CardResponseDTO> pageRes = cardService
                 .filterAll(q, userId, minBalance, maxBalance, minDate, maxDate, status, pageable)
                 .map(CardMapper::toResponse);
         return PageResponse.from(pageRes, sort);
@@ -119,7 +119,7 @@ public class CardController {
             @DateTimeFormat(pattern = "yyyy-MM") LocalDate maxDate,
             @RequestParam(required = false) String status) {
 
-        var cards = cardService.filterCards(userId, minBalance, maxBalance, minDate, maxDate, status);
+        List<CardEntity> cards = cardService.filterCards(userId, minBalance, maxBalance, minDate, maxDate, status);
         return cards.stream().map(CardMapper::toResponse).toList();
     }
 

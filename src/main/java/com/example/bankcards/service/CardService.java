@@ -10,7 +10,6 @@ import com.example.bankcards.security.SecurityUtils;
 import com.example.bankcards.util.mapper.CardMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;

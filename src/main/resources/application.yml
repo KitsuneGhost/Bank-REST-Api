@@ -44,3 +44,7 @@ springdoc:
       paths-to-match: /cards/**
     - group: auth
       paths-to-match: /auth/**
+  logging:
+    level:
+      org.springdoc: DEBUG
+      org.springframework.web: INFO

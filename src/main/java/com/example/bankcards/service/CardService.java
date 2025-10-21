@@ -3,11 +3,14 @@ package com.example.bankcards.service;
 import com.example.bankcards.dto.card.*;
 import com.example.bankcards.entity.CardEntity;
 import com.example.bankcards.entity.UserEntity;
+import com.example.bankcards.entity.TransferEntity;
 import com.example.bankcards.repository.CardRepository;
+import com.example.bankcards.repository.TransferRepository;
 import com.example.bankcards.repository.UserRepository;
 import com.example.bankcards.repository.spec.CardSpecs;
 import com.example.bankcards.security.SecurityUtils;
 import com.example.bankcards.util.mapper.CardMapper;
+import jakarta.persistence.criteria.Join;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -32,6 +35,7 @@ public class CardService {
 
     private final CardRepository cardRepository;
     private final UserRepository userRepository;
+    private final TransferRepository transferRepository;
     private final SecurityUtils security;
     private final UserService userService;
     private final CurrentUserService currentUserService; // reads SecurityContext
@@ -45,11 +49,13 @@ public class CardService {
 
     public CardService(CardRepository cardRepository,
                        UserRepository userRepository,
+                       TransferRepository transferRepository,
                        SecurityUtils securityUtils,
                        UserService userService,
                        CurrentUserService currentUserService) {
         this.cardRepository = cardRepository;
         this.userRepository = userRepository;
+        this.transferRepository = transferRepository;
         this.security = securityUtils;
         this.userService = userService;
         this.currentUserService = currentUserService;
@@ -72,7 +78,7 @@ public class CardService {
         if (q != null && !q.isBlank()) {
             String like = "%" + q.trim().toLowerCase() + "%";
             spec = spec.and((r, qy, cb2) -> {
-                var userJoin = r.join("user");
+                Join<Object, Object> userJoin = r.join("user");
                 // If you do NOT have last4 column yet, remove the second part of OR
                 return cb2.or(
                         cb2.like(cb2.lower(userJoin.get("fullName")), like),
@@ -108,39 +114,93 @@ public class CardService {
         return cardRepository.findAll(spec, pageable);
     }
 
-    public Page<CardEntity> filterMine(
-            String q,
-            BigDecimal minBalance,
-            BigDecimal maxBalance,
-            LocalDate minDate,
-            LocalDate maxDate,
-            String statusCsv,
-            Pageable pageable
-    ) {
-        Long currentUserId = userService.getCurrentUserEntity().getId();
-        Specification<CardEntity> spec = (r, qy, cb) -> cb.equal(r.get("user").get("id"), currentUserId);
-
-        if (q != null && !q.isBlank()) {
-            String like = "%" + q.trim().toLowerCase() + "%";
-            // If no last4 column, you can drop to only holder name via join
-            spec = spec.and((r, qqq, cb2) -> cb2.like(cb2.lower(r.get("last4")), like));
-        }
-        if (minBalance != null) spec = spec.and((r, qy, cb2) -> cb2.ge(r.get("balance"), minBalance));
-        if (maxBalance != null) spec = spec.and((r, qy, cb2) -> cb2.le(r.get("balance"), maxBalance));
-        if (minDate != null) spec = spec.and((r, qy, cb2) -> cb2.greaterThanOrEqualTo(r.get("expirationDate"), minDate));
-        if (maxDate != null) spec = spec.and((r, qy, cb2) -> cb2.lessThanOrEqualTo(r.get("expirationDate"), maxDate));
-        if (statusCsv != null && !statusCsv.isBlank()) {
-            Set<String> statuses = Arrays.stream(statusCsv.split(","))
-                    .map(String::trim).filter(s -> !s.isEmpty()).collect(Collectors.toSet());
-            spec = spec.and((r, qy, cb2) -> r.get("status").in(statuses));
-        }
-        return cardRepository.findAll(spec, pageable);
+    @Transactional(readOnly = true)
+    public Page<CardSummaryDTO> filterMine(CardFilter filter, Pageable pageable) {
+        return filterForUser(security.currentUserId(), filter, pageable);
     }
 
     public Page<CardSummaryDTO> filterForUser(Long userId, CardFilter filter, Pageable pageable) {
         Specification<CardEntity> spec = CardSpecs.build(userId, filter);
         return cardRepository.findAll(spec, pageable).map(CardSummaryDTO::from);
     }
+
+    @Transactional
+    public void updateStatus(Long id, String newStatus) {
+        CardEntity card = cardRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Card not found"));
+
+        card.setStatus(newStatus);
+        cardRepository.save(card);
+    }
+
+    @Transactional
+    public void requestBlock(Long id) {
+        Long me = security.currentUserId();
+        CardEntity card = cardRepository.findByIdAndUser_Id(id, me)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Card not found"));
+        card.setStatus("BLOCK_REQUESTED");
+        cardRepository.save(card);
+    }
+
+
+    @Transactional
+    public void transferBetweenMyCards(Long fromCardId, Long toCardId, BigDecimal amount) {
+        if (fromCardId == null || toCardId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Both fromCardId and toCardId are required");
+        }
+        if (fromCardId.equals(toCardId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot transfer to the same card");
+        }
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Amount must be positive");
+        }
+
+        Long currentUserId = security.currentUserId();
+
+        CardEntity from = cardRepository.findByIdAndUser_Id(fromCardId, currentUserId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Source card not found or not yours"));
+        CardEntity to = cardRepository.findByIdAndUser_Id(toCardId, currentUserId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Target card not found or not yours"));
+
+        String fromStatus = from.getStatus();
+        String toStatus = to.getStatus();
+        if (!"ACTIVE".equalsIgnoreCase(fromStatus)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Source card is not ACTIVE");
+        }
+        if (!"ACTIVE".equalsIgnoreCase(toStatus)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Target card is not ACTIVE");
+        }
+
+        BigDecimal fromBalance = from.getBalance() != null ? from.getBalance() : BigDecimal.ZERO;
+        BigDecimal toBalance = to.getBalance() != null ? to.getBalance() : BigDecimal.ZERO;
+
+        if (fromBalance.compareTo(amount) < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Insufficient funds");
+        }
+
+        // Apply balance updates
+        from.setBalance(fromBalance.subtract(amount));
+        to.setBalance(toBalance.add(amount));
+
+        // Save in a consistent order to reduce lock contention
+        if (from.getId() < to.getId()) {
+            cardRepository.save(from);
+            cardRepository.save(to);
+        } else {
+            cardRepository.save(to);
+            cardRepository.save(from);
+        }
+
+        TransferEntity tx = new TransferEntity();
+        tx.setUserId(currentUserId);
+        tx.setFromCardId(from.getId());
+        tx.setToCardId(to.getId());
+        tx.setAmount(amount);
+        tx.setStatus("COMPLETED");
+        // createdAt is auto-set in entity; DB also has default now()
+        transferRepository.save(tx);
+    }
+
 
     /* ========================= READ ========================= */
 

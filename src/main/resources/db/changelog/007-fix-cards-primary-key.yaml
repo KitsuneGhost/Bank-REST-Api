@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20251021-00-cards-add-pk
+      author: you
+      preConditions:
+        - onFail: MARK_RAN
+          not:
+            primaryKeyExists:
+              tableName: cards
+      changes:
+        - addPrimaryKey:
+            tableName: cards
+            columnNames: id
+            constraintName: cards_pkey

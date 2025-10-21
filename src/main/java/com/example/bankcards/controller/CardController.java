@@ -1,18 +1,17 @@
 package com.example.bankcards.controller;
 
-import com.example.bankcards.dto.card.CardCreateRequestDTO;
-import com.example.bankcards.dto.card.CardResponseDTO;
-import com.example.bankcards.dto.card.CardUpdateRequestDTO;
-import com.example.bankcards.dto.card.PageResponse;
+import com.example.bankcards.dto.card.*;
 import com.example.bankcards.entity.CardEntity;
 import com.example.bankcards.service.CardService;
 import com.example.bankcards.util.mapper.CardMapper;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -51,7 +50,7 @@ public class CardController {
             @RequestParam(required = false) String q
     ) {
         Pageable pageable = PageRequest.of(page, Math.min(size, 100), parseSort(sort));
-        var pageRes = cardService
+        Page<CardResponseDTO> pageRes = cardService
                 .filterAll(q, userId, minBalance, maxBalance, minDate, maxDate, status, pageable)
                 .map(CardMapper::toResponse);
         return PageResponse.from(pageRes, sort);
@@ -59,24 +58,8 @@ public class CardController {
 
     @GetMapping("/me")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
-    public PageResponse<CardResponseDTO> listMinePaged(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "12") int size,
-            @RequestParam(defaultValue = "createdAt,desc") String sort,
-            @RequestParam(required = false) BigDecimal minBalance,
-            @RequestParam(required = false) BigDecimal maxBalance,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate minDate,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate maxDate,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String q
-    ) {
-        Pageable pageable = PageRequest.of(page, Math.min(size, 100), parseSort(sort));
-        var pageRes = cardService
-                .filterMine(q, minBalance, maxBalance, minDate, maxDate, status, pageable)
-                .map(CardMapper::toResponse);
-        return PageResponse.from(pageRes, sort);
+    public Page<CardSummaryDTO> myCards(CardFilter filter, Pageable pageable) {
+        return cardService.filterMine(filter, pageable);
     }
 
     // Create card for the authenticated user
@@ -93,6 +76,33 @@ public class CardController {
     public CardResponseDTO createForUser(@PathVariable Long userId, @Valid @RequestBody CardCreateRequestDTO req) {
         CardEntity saved = cardService.createForUser(userId, req);
         return CardMapper.toResponse(saved);
+    }
+
+    @PostMapping("/me/transfers")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void transfer(@RequestBody @Valid TransferRequestDTO req) {
+        cardService.transferBetweenMyCards(req.fromCardId(), req.toCardId(), req.amount());
+    }
+
+    @PatchMapping("/{id}/block")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> blockCard(@PathVariable Long id) {
+        cardService.updateStatus(id, "BLOCKED");
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/activate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> activateCard(@PathVariable Long id) {
+        cardService.updateStatus(id, "ACTIVE");
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/me/{id}/request-block")
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    public ResponseEntity<Void> requestBlock(@PathVariable Long id) {
+        cardService.requestBlock(id);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")
@@ -130,7 +140,7 @@ public class CardController {
             @DateTimeFormat(pattern = "yyyy-MM") LocalDate maxDate,
             @RequestParam(required = false) String status) {
 
-        var cards = cardService.filterCards(userId, minBalance, maxBalance, minDate, maxDate, status);
+        List<CardEntity> cards = cardService.filterCards(userId, minBalance, maxBalance, minDate, maxDate, status);
         return cards.stream().map(CardMapper::toResponse).toList();
     }
 

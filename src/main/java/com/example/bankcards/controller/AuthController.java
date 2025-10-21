@@ -8,6 +8,12 @@ import com.example.bankcards.repository.UserRepository;
 import com.example.bankcards.security.CustomUserDetails;
 import com.example.bankcards.security.Role;
 import com.example.bankcards.security.JwtUtils;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -21,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 import java.util.Set;
 
+@Tag(name = "Auth", description = "Authentication endpoints")
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
@@ -38,6 +45,12 @@ public class AuthController {
         this.passwordEncoder = passwordEncoder;
     }
 
+    @Operation(summary = "Login (returns JWT)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "OK",
+                    content = @Content(schema = @Schema(implementation = LoginResponse.class))),
+            @ApiResponse(responseCode = "401", description = "Bad credentials")
+    })
     @PostMapping("/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest req) {
         Authentication auth = authManager.authenticate(
@@ -47,6 +60,11 @@ public class AuthController {
         return new LoginResponse(token, 24*60*60*1000);
     }
 
+    @Operation(summary = "Register user")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Created"),
+            @ApiResponse(responseCode = "400", description = "Validation error")
+    })
     @PostMapping("/register")
     public Map<String, Object> register(@Valid @RequestBody RegisterRequest req) {
         var user = new UserEntity();

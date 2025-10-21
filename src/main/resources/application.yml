@@ -1,11 +1,5 @@
 # application.yml — главный конфигурационный файл Spring Boot.
 
-Что нужно сделать:
-  - Указать настройки подключения к базе данных.
-  - Указать порт приложения.
-  - Настроить параметры безопасности и JWT.
-  - Включить Swagger UI.
-
 spring:
   datasource:
     url: ${DB_URL}
@@ -38,3 +32,15 @@ jwt:
 encryption:
   pan-key-b64: ${PAN_AES_KEY_B64} # AES key for card PANs (card numbers)
   attribute-key-b64: ${ATTRIBUTE_AES_KEY_B64} # AES key for AttributeEncryptor
+
+springdoc:
+  swagger-ui:
+    path: /docs          # UI
+  # Grouping by path prefix:
+  group-configs:
+    - group: users
+      paths-to-match: /users/**
+    - group: cards
+      paths-to-match: /cards/**
+    - group: auth
+      paths-to-match: /auth/**

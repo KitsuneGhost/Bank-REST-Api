@@ -11,6 +11,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -83,6 +84,26 @@ public class CardController {
         cardService.transferBetweenMyCards(req.fromCardId(), req.toCardId(), req.amount());
     }
 
+    @PatchMapping("/{id}/block")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> blockCard(@PathVariable Long id) {
+        cardService.updateStatus(id, "BLOCKED");
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/activate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> activateCard(@PathVariable Long id) {
+        cardService.updateStatus(id, "ACTIVE");
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/me/{id}/request-block")
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    public ResponseEntity<Void> requestBlock(@PathVariable Long id) {
+        cardService.requestBlock(id);
+        return ResponseEntity.noContent().build();
+    }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")

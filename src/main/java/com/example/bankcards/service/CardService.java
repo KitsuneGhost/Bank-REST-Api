@@ -125,6 +125,25 @@ public class CardService {
     }
 
     @Transactional
+    public void updateStatus(Long id, String newStatus) {
+        CardEntity card = cardRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Card not found"));
+
+        card.setStatus(newStatus);
+        cardRepository.save(card);
+    }
+
+    @Transactional
+    public void requestBlock(Long id) {
+        Long me = security.currentUserId();
+        CardEntity card = cardRepository.findByIdAndUser_Id(id, me)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Card not found"));
+        card.setStatus("BLOCK_REQUESTED");
+        cardRepository.save(card);
+    }
+
+
+    @Transactional
     public void transferBetweenMyCards(Long fromCardId, Long toCardId, BigDecimal amount) {
         if (fromCardId == null || toCardId == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Both fromCardId and toCardId are required");
@@ -145,10 +164,10 @@ public class CardService {
 
         String fromStatus = from.getStatus();
         String toStatus = to.getStatus();
-        if (fromStatus == null || !"ACTIVE".equalsIgnoreCase(fromStatus)) {
+        if (!"ACTIVE".equalsIgnoreCase(fromStatus)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Source card is not ACTIVE");
         }
-        if (toStatus == null || !"ACTIVE".equalsIgnoreCase(toStatus)) {
+        if (!"ACTIVE".equalsIgnoreCase(toStatus)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Target card is not ACTIVE");
         }
 

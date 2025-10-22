@@ -36,14 +36,7 @@ encryption:
 springdoc:
   swagger-ui:
     path: /docs          # UI
-  # Grouping by path prefix:
-  group-configs:
-    - group: users
-      paths-to-match: /users/**
-    - group: cards
-      paths-to-match: /cards/**
-    - group: auth
-      paths-to-match: /auth/**
+
   logging:
     level:
       org.springdoc: DEBUG

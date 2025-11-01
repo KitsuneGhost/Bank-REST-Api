@@ -1,38 +1,38 @@
-# 🏦 Bank REST API
+# Bank REST API
 
-Надёжный RESTful‑бэкенд банковской системы, созданный на **Spring Boot 3.5**, **Spring Security JWT**, **PostgreSQL** и **Liquibase**.  
-Реализует управление пользователями и картами, переводы, а также административные функции в соответствии с техническим заданием.
-
----
-
-## 🚀 Основные возможности
-
-| Категория | Описание |
-|------------|-----------|
-| **Безопасность** | JWT‑аутентификация · Ролевая модель (USER / ADMIN) · Шифрование и маскирование номеров карт (PAN) |
-| **Бизнес‑логика** | CRUD‑операции с картами · Переводы между своими картами · Блокировка / активация · Фильтрация и пагинация |
-| **Администрирование** | Управление пользователями и картами · Полный доступ к записям |
-| **Хранилище данных** | PostgreSQL + миграции Liquibase |
-| **Документация** | Swagger UI / OpenAPI 3 с кнопкой авторизации JWT |
-| **Валидация** | Bean Validation + централизованная обработка ошибок |
-| **Развёртывание** | Docker Compose для локальной среды с PostgreSQL |
+A secure RESTful banking backend built with **Spring Boot 3.5**, **Spring Security JWT**, **PostgreSQL**, and **Liquibase**.  
+Implements user and card management, transfers, and admin features, following the technical test requirements.
 
 ---
 
-## ⚙️ Запуск проекта
+## Features
 
-### 1️⃣ Необходимое ПО
-- JDK 17+  
-- Docker Desktop или Docker Compose v2  
-- Maven 3.9+
+| Category | Highlights |
+|-----------|-------------|
+| **Security** | JWT authentication · Role-based access (USER / ADMIN) · Encrypted & masked PAN storage |
+| **Domain** | Cards CRUD · Transfers between own cards · Block / Activate cards · Filtering + Pagination |
+| **Admin** | Manage users and cards · Full audit access |
+| **Persistence** | PostgreSQL + Liquibase migrations |
+| **Documentation** | Swagger UI / OpenAPI 3 with JWT Authorize button |
+| **Validation** | Bean Validation + centralized error handling |
+| **Deployment** | Docker Compose for PostgreSQL dev environment |
 
-### 2️⃣ Клонирование и переменные окружения
+---
+
+## Setup & Run
+
+### №1 Prerequisites
+- JDK 17 +
+- Docker Desktop or Docker Compose v2
+- Maven 3.9 +
+
+### №2 Clone repo and set env vars
 ```bash
 git clone https://github.com/yourusername/Bank-REST-Api.git
 cd Bank-REST-Api
 ```
 
-Проект использует файл `.env` для подключения к базе (пример):
+The project uses `.env` for DB connection (example):
 
 ```env
 DB_URL=jdbc:postgresql://localhost:5432/bank_db
@@ -43,113 +43,116 @@ ATTRIBUTE_AES_KEY_B64=h8q7jZfF3e5eR3KM4gQ2rQ==
 SERVER_PORT=8080
 ```
 
-### 3️⃣ Запуск PostgreSQL через Docker
+### №3 Start PostgreSQL via Docker
 ```bash
 docker compose up -d
 ```
-Запускает контейнер `postgres:18` с базой `bank_db`.
+This launches a local `postgres:18` container with database `bank_db`.
 
-### 4️⃣ Запуск приложения
+### №4 Run the app
 ```bash
 mvn spring-boot:run
 ```
 
-Приложение доступно по адресу **http://localhost:8080**.
+The API runs at **http://localhost:8080**
 
 ---
 
-## 📘 Документация API
+## API Documentation
 
-Swagger UI создаётся автоматически библиотекой **Springdoc 2.8.13**.
+Swagger UI is generated automatically with **Springdoc 2.8.13**.
 
-| Ресурс | URL |
-|---------|-----|
-| Swagger UI | [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html) |
-| OpenAPI JSON | [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs) |
-| OpenAPI YAML | [http://localhost:8080/v3/api-docs.yaml](http://localhost:8080/v3/api-docs.yaml) |
+| Resource | URL |
+|-----------|-----|
+| Swagger UI | [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html) |
+| OpenAPI JSON | [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs) |
+| OpenAPI YAML | [http://localhost:8080/v3/api-docs.yaml](http://localhost:8080/v3/api-docs.yaml) |
 
-Если в `application.yml` задан собственный путь:
+If you configured a custom UI path in `application.yml`:
 ```yaml
 springdoc:
   swagger-ui:
     path: /docs
 ```
-то используйте [http://localhost:8080/docs/index.html](http://localhost:8080/docs/index.html).
+then open [http://localhost:8080/docs/index.html](http://localhost:8080/docs/index.html).
 
-### 🔒 Авторизация JWT
-1. Получите токен через `POST /auth/login`.  
-2. Нажмите **Authorize** в Swagger UI.  
-3. Вставьте токен (без `Bearer`) и подтвердите.
+### Authorize with JWT
+1. Obtain a token via `POST /auth/login`.
+2. Click **Authorize** in Swagger UI.
+3. Paste the token (without *Bearer *) and confirm.
 
 ---
 
-## 🗃️ Миграции базы данных (Liquibase)
+## Database Migrations (Liquibase)
 
-Все миграции находятся в  
+All migrations live under  
 `src/main/resources/db/changelog/`.
 
-Liquibase выполняется автоматически при старте.  
-Для ручного запуска:
+Liquibase runs automatically on startup.  
+To apply manually:
+
 ```bash
 mvn liquibase:update
 ```
 
 ---
 
-## 🧪 Генерация файла OpenAPI
+## Generate OpenAPI spec file
 
-Для формирования `docs/openapi.yaml`:
+To produce the deliverable `docs/openapi.yaml`:
+
 ```bash
-# Приложение должно быть запущено
+# App must be running
 mvn -DskipTests=false verify
 ```
-Плагин **springdoc-openapi-maven-plugin** обращается к `/v3/api-docs`  
-и сохраняет спецификацию YAML в `docs/openapi.yaml` (нужно закоммитить).
+
+This uses the **springdoc-openapi-maven-plugin** to call `/v3/api-docs`  
+and saves the YAML spec into `docs/openapi.yaml` (commit this file).
 
 ---
 
-## 🧩 Структура проекта
+## Project Structure
 
 ```
 src/
  ├─ main/java/com/example/bankcards/
- │   ├─ config/           # Безопасность, JWT, OpenAPI
- │   ├─ controller/       # Контроллеры Auth, User, Card
- │   ├─ dto/              # DTO‑объекты запросов и ответов
- │   ├─ entity/           # JPA‑сущности
- │   ├─ repository/       # Репозитории Spring Data
- │   ├─ service/          # Сервисный слой
- │   └─ exception/        # Глобальная обработка ошибок
+ │   ├─ config/           # Security, JWT, OpenAPI config
+ │   ├─ controller/       # Auth, User, Card controllers
+ │   ├─ dto/              # DTOs for requests/responses
+ │   ├─ entity/           # JPA entities
+ │   ├─ repository/       # Spring Data repositories
+ │   ├─ service/          # Business logic
+ │   └─ exception/        # Global exception handling
  ├─ main/resources/
- │   ├─ db/changelog/     # Миграции Liquibase
- │   └─ application.yml   # Конфигурация (БД, JWT, Swagger)
- └─ test/java/...         # Юнит‑тесты (по необходимости)
+ │   ├─ db/changelog/     # Liquibase changelogs
+ │   └─ application.yml   # Config (DB, JWT, Swagger)
+ └─ test/java/...         # Unit tests (to be expanded)
 ```
 
 ---
 
-## 📑 Основные эндпоинты
+## Endpoints Overview
 
-| Роль | Endpoint | Назначение |
-|------|-----------|------------|
-| Public | `POST /auth/register` | Регистрация пользователя |
-| Public | `POST /auth/login` | Аутентификация и получение JWT |
-| USER | `GET /cards/me` | Список собственных карт (с пагинацией) |
-| USER | `POST /cards/me/create` | Создать карту |
-| USER | `POST /cards/me/transfers` | Перевод между своими картами |
-| USER | `PATCH /cards/me/{id}/request-block` | Запросить блокировку карты |
-| ADMIN | `GET /cards` | Просмотр всех карт |
-| ADMIN | `POST /cards/users/{userId}/create` | Создать карту пользователю |
-| ADMIN | `PATCH /cards/{id}/block` | Заблокировать карту |
-| ADMIN | `PATCH /cards/{id}/activate` | Активировать карту |
-| ADMIN | `DELETE /cards/{id}` | Удалить карту |
-| ADMIN | `GET /users` | Список пользователей |
-| ADMIN | `PUT /users/{id}` | Обновить пользователя |
-| ADMIN | `DELETE /users/{id}` | Удалить пользователя |
+| Role | Endpoint | Description |
+|------|-----------|-------------|
+| Public | `POST /auth/register` | Register user |
+| Public | `POST /auth/login` | Authenticate & get JWT |
+| USER | `GET /cards/me` | List own cards (paged) |
+| USER | `POST /cards/me/create` | Create card |
+| USER | `POST /cards/me/transfers` | Transfer between own cards |
+| USER | `PATCH /cards/me/{id}/request-block` | Request card block |
+| ADMIN | `GET /cards` | List all cards |
+| ADMIN | `POST /cards/users/{userId}/create` | Create card for user |
+| ADMIN | `PATCH /cards/{id}/block` | Block card |
+| ADMIN | `PATCH /cards/{id}/activate` | Activate card |
+| ADMIN | `DELETE /cards/{id}` | Delete card |
+| ADMIN | `GET /users` | List users |
+| ADMIN | `PUT /users/{id}` | Update user |
+| ADMIN | `DELETE /users/{id}` | Delete user |
 
 ---
 
-## 🔐 Конфигурация безопасности
+## Security Config Summary
 
 ```java
 .requestMatchers(
@@ -162,12 +165,13 @@ src/
 ).permitAll()
 .anyRequest().authenticated();
 ```
-Фильтр `JwtAuthenticationFilter` пропускает эти пути,  
-все остальные требуют заголовок `Authorization: Bearer <token>`.
+
+The `JwtAuthenticationFilter` skips those whitelisted paths,  
+while all others require a valid `Authorization: Bearer <token>` header.
 
 ---
 
-## 🐳 Docker Compose (локальная БД)
+## Docker Compose (Dev DB)
 
 ```yaml
 version: '3.9'
@@ -190,23 +194,23 @@ volumes:
 
 ---
 
-## ⚠️ Решение типовых ошибок
+## Troubleshooting
 
-| Проблема | Причина / решение |
-|-----------|------------------|
-| `{"reason":"No static resource docs"}` | Отсутствует зависимость `springdoc-openapi-starter-webmvc-ui` или неверный путь → установить **2.8.13** и разрешить `/docs/**` |
-| `/v3/api-docs` → 500 `ControllerAdviceBean.<init>` | Несовместимость Spring Boot 3.5 и старой springdoc 2.6.x → обновить до **2.8.13** |
-| Swagger UI показывает «Failed to load API definition» | Проверить, что `/v3/api-docs` отдаёт 200 и не блокируется JWT‑фильтром |
-| UI 403 / 401 | Добавить `/docs/**` или `/swagger-ui/**` в permitAll() и исключить из JWT‑фильтра |
-
----
-
-## 👩‍💻 Автор
-
-**Ожогин Тихон Сергеевич**  
-_Тестовое задание – Bank REST API_
+| Problem | Cause / Fix |
+|----------|-------------|
+| `{"reason":"No static resource docs"}` | Missing `springdoc-openapi-starter-webmvc-ui` or wrong path — fixed by installing **2.8.13** and permitting `/docs/**` |
+| `/v3/api-docs` → 500 `ControllerAdviceBean.<init>` | Spring Boot 3.5 + old springdoc 2.6.x incompatibility → **upgrade to 2.8.13** |
+| Swagger UI shows “Failed to load API definition” | Ensure `/v3/api-docs` returns 200 and isn’t blocked by JWT filter |
+| UI 403 / 401 | Add `/docs/**` or `/swagger-ui/**` to security permitAll() and skip in JWT filter |
 
 ---
 
-### ✅ Статус
-**Рабочая сборка** · Swagger UI и генерация OpenAPI проверены ✔️
+## Author
+
+**Tikhon Ozhogin**  
+_Test Assignment – Bank REST API_
+
+---
+
+### Status
+**Working build** with Swagger UI + OpenAPI spec generation verified 

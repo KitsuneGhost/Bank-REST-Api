@@ -29,6 +29,12 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 
+/**
+ *
+ * REST controller for managing cards.
+ * Users can view their own cards and do transfers between them. Admins can delete, block, and view all cards.
+ *
+ */
 @Tag(name = "Cards", description = "Manage bank cards, filters, transfers")
 @SecurityRequirement(name = "bearerAuth")
 @Validated
@@ -46,6 +52,23 @@ public class CardController {
 
     /* ========================= FILTERS ========================= */
 
+    /**
+     *
+     * Admin method to get view all cards.
+     * Has pagination and filtering by userId/balance/date/status.
+     *
+     * @param page page number, default = 0
+     * @param size numbers of elements in the page, default = 12
+     * @param sort sorting criteria, default = createdAt,desc
+     * @param userId user ID
+     * @param minBalance minimal card balance
+     * @param maxBalance maximum card balance
+     * @param minDate minimal expiration date
+     * @param maxDate maximum expiration date
+     * @param status card status (ACTIVE/BLOCKED/BLOCK_REQUESTED)
+     * @param q a query
+     * @return PageResponse dto to show the list of all cards.
+     */
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(
@@ -80,6 +103,15 @@ public class CardController {
     }
 
 
+    /**
+     *
+     * A method to show all the cards that belong to authorized user.
+     * Can be used by both admins and users.
+     *
+     * @param filter a filter CardFilter dto
+     * @param pageable a standard Pageable (page/size/sort)
+     * @return the authenticated user's cards with standard Pageable (page/size/sort) and CardFilter dto.
+     */
     @GetMapping("/me")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @Operation(
@@ -98,6 +130,14 @@ public class CardController {
 
     /* ========================= CREATE CARDS ========================= */
 
+    /**
+     *
+     * A method to create a new card for the authenticated user.
+     * Can be used by both admins and users.
+     *
+     * @param req CardCreateRequestDto dto with card data
+     * @return CardResponseDTO dto
+     */
     @PostMapping("/me/create")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @Operation(
@@ -114,6 +154,15 @@ public class CardController {
         return CardMapper.toResponse(saved);
     }
 
+    /**
+     *
+     * A method to create a card for a specific user by user ID.
+     * Can only be used by admins.
+     *
+     * @param userId user's ID
+     * @param req CardCreateRequestDTO dto with card data
+     * @return CardResponseDTO dto
+     */
     @PostMapping("/users/{userId}/create")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(
@@ -131,6 +180,12 @@ public class CardController {
         return CardMapper.toResponse(saved);
     }
 
+    /**
+     *
+     * A method that allows an authenticated user to transfer money between their cards.
+     *
+     * @param req TransferRequestDTO dto
+     */
     @PostMapping("/me/transfers")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(
@@ -146,6 +201,14 @@ public class CardController {
         cardService.transferBetweenMyCards(req.fromCardId(), req.toCardId(), req.amount());
     }
 
+    /**
+     *
+     * A method used to block cards using card's ID.
+     * Can only be used by admins.
+     *
+     * @param id card's ID
+     * @return ResponseEntity with Void typing
+     */
     @PatchMapping("/{id}/block")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Block card", description = "Switches card status to 'BLOCKED' by Admins;")
@@ -159,6 +222,14 @@ public class CardController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     *
+     * A method used to activate cards using card's ID.
+     * Can only be used by admins.
+     *
+     * @param id card's ID
+     * @return ResponseEntity with Void typing
+     */
     @PatchMapping("/{id}/activate")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Activate card", description = "Switches card status to 'ACTIVE' by Admins;")
@@ -172,6 +243,16 @@ public class CardController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     *
+     * A method used to request a card block.
+     * The card must belong to the authenticated user.
+     * Takes card ID from the path.
+     * Can be used by both admins and users.
+     *
+     * @param id card's ID
+     * @return ResponseEntity with Void typing
+     */
     @PatchMapping("/me/{id}/request-block")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @Operation(summary = "Request to block a card", description = "Switches card status to 'BLOCK_REQUESTED';")
@@ -187,6 +268,16 @@ public class CardController {
 
     /* ========================= BASIC CRUD ========================= */
 
+    /**
+     *
+     * A method to get a card by id.
+     * Can be used by both admins and users.
+     * Users can only access their own cards using this method.
+     * Admins can see any card.
+     *
+     * @param id id
+     * @return CardResponseDTO dto with the requested card.
+     */
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @Operation(summary = "Get card by id", description = "Card owner or ADMIN can view.")

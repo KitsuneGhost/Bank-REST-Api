@@ -27,6 +27,12 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ *
+ * Rest Controller for managing authentication endpoints.
+ * Is public to allow anybody login and register.
+ *
+ */
 @Tag(name = "Auth", description = "Authentication endpoints")
 @RestController
 @RequestMapping("/auth")
@@ -45,6 +51,15 @@ public class AuthController {
         this.passwordEncoder = passwordEncoder;
     }
 
+
+    /**
+     *
+     * Login method. Returns JWT for authentication.
+     *
+     * @param req request body (JSON).
+     * @return LoginResponse dto with JWT.
+     *
+     */
     @Operation(summary = "Login (returns JWT)")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "OK",
@@ -60,6 +75,15 @@ public class AuthController {
         return new LoginResponse(token, 24*60*60*1000);
     }
 
+
+    /**
+     *
+     * Registration method. Accepts RegisterRequest and creates a user.
+     *
+     * @param req RegisterRequest containing new user data.
+     * @return a message signaling that user was successfully created.
+     *
+     */
     @Operation(summary = "Register user")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Created"),

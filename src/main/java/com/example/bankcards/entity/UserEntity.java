@@ -9,6 +9,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Entity class for users. Contains user data.
+ */
 @Entity
 @Table(name = "users")
 public class UserEntity {
@@ -75,11 +78,23 @@ public class UserEntity {
         this.roles = roles;
     }
 
+    /**
+     *
+     * A method to add a card to the user.
+     *
+     * @param card Card Entity
+     */
     public void addCard(CardEntity card) {
         cards.add(card);
         card.setUser(this);
     }
 
+    /**
+     *
+     * A method to remove a card from the user.
+     *
+     * @param card Card Entity
+     */
     public void removeCard(CardEntity card) {
         cards.remove(card);
         card.setUser(null);

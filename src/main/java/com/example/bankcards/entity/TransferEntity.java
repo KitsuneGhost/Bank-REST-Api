@@ -6,6 +6,9 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 
+/**
+ * Entity class for transfers. Contains transfer data.
+ */
 @Entity
 @Table(name = "transfers", schema = "public") // schema only if you use public
 public class TransferEntity {

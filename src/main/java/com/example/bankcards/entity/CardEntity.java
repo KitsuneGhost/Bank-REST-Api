@@ -10,6 +10,9 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 
+/**
+ * Entity class for cards. Contains card data.
+ */
 @Entity
 @Table(name = "cards")
 public class CardEntity {
@@ -111,6 +114,9 @@ public class CardEntity {
         return user != null ? user.getFullName() : null;
     }
 
+    /**
+     *  A method that derives last 4 digits from a card's number.
+     */
     @PrePersist @PreUpdate
     private void deriveLast4() {
         if (cardNumber != null && cardNumber.length() >= 4) {

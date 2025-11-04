@@ -17,11 +17,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  *   <li>Support for external configuration via {@code application.yml}</li>
  * </ul>
  *
- * <p><b>Usage:</b>
- * <pre>
- * java -jar bankcards.jar
- * </pre>
- *
  * <p>This application exposes RESTful endpoints for managing users, cards,
  * and transactions, secured by JWT-based authentication.
  *

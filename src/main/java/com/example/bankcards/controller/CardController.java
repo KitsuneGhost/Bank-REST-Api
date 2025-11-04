@@ -30,10 +30,30 @@ import java.time.LocalDate;
 
 
 /**
+ * REST controller responsible for managing bank cards.
+ * <p>
+ * Provides endpoints for both regular users and administrators to:
+ * <ul>
+ *   <li>View and filter cards (paged and filtered search)</li>
+ *   <li>Create cards (for themselves or for specific users)</li>
+ *   <li>Update, activate, block, or delete cards</li>
+ *   <li>Perform transfers between owned cards</li>
+ * </ul>
  *
- * REST controller for managing cards.
- * Users can view their own cards and do transfers between them. Admins can delete, block, and view all cards.
+ * <p><b>Access control:</b>
+ * <ul>
+ *   <li>Regular users ({@code ROLE_USER}) can manage and view only their own cards.</li>
+ *   <li>Administrators ({@code ROLE_ADMIN}) can view and manage all cards system-wide.</li>
+ * </ul>
  *
+ * <p>All endpoints require JWT authentication (configured under {@code bearerAuth}).</p>
+ *
+ * @see com.example.bankcards.service.CardService
+ * @see com.example.bankcards.dto.card.CardCreateRequestDTO
+ * @see com.example.bankcards.dto.card.CardResponseDTO
+ * @see com.example.bankcards.dto.card.CardSummaryDTO
+ * @see com.example.bankcards.dto.card.CardUpdateRequestDTO
+ * @see com.example.bankcards.dto.card.TransferRequestDTO
  */
 @Tag(name = "Cards", description = "Manage bank cards, filters, transfers")
 @SecurityRequirement(name = "bearerAuth")
@@ -50,24 +70,27 @@ public class CardController {
         this.cardService = cardService;
     }
 
+
     /* ========================= FILTERS ========================= */
 
+
     /**
+     * Retrieves a paginated and filtered list of all cards (Admin only).
+     * <p>
+     * Supports filtering by user ID, balance range, expiration date range,
+     * status, and full-text query (holder name or last 4 digits).
      *
-     * Admin method to get view all cards.
-     * Has pagination and filtering by userId/balance/date/status.
-     *
-     * @param page page number, default = 0
-     * @param size numbers of elements in the page, default = 12
-     * @param sort sorting criteria, default = createdAt,desc
-     * @param userId user ID
-     * @param minBalance minimal card balance
-     * @param maxBalance maximum card balance
-     * @param minDate minimal expiration date
-     * @param maxDate maximum expiration date
-     * @param status card status (ACTIVE/BLOCKED/BLOCK_REQUESTED)
-     * @param q a query
-     * @return PageResponse dto to show the list of all cards.
+     * @param page        page number (default: 0)
+     * @param size        page size (default: 12, max: 100)
+     * @param sort        sort criteria (e.g. "createdAt,desc"), supports whitelisted fields
+     * @param userId      filter by owner user ID
+     * @param minBalance  filter for minimum balance
+     * @param maxBalance  filter for maximum balance
+     * @param minDate     filter for minimum expiration date (yyyy-MM-dd)
+     * @param maxDate     filter for maximum expiration date (yyyy-MM-dd)
+     * @param status      filter by status (ACTIVE/BLOCKED/BLOCK_REQUESTED)
+     * @param q           free-text search (holder name or last4)
+     * @return paginated {@link PageResponse} of {@link CardResponseDTO} items
      */
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -104,13 +127,13 @@ public class CardController {
 
 
     /**
+     * Retrieves a paginated list of cards owned by the authenticated user.
+     * <p>
+     * Supports the same filters as admin listing, but scoped to the current user.
      *
-     * A method to show all the cards that belong to authorized user.
-     * Can be used by both admins and users.
-     *
-     * @param filter a filter CardFilter dto
-     * @param pageable a standard Pageable (page/size/sort)
-     * @return the authenticated user's cards with standard Pageable (page/size/sort) and CardFilter dto.
+     * @param filter   optional {@link CardFilter} defining query parameters
+     * @param pageable Spring pageable definition (page, size, sort)
+     * @return {@link Page} of {@link CardSummaryDTO} cards belonging to the user
      */
     @GetMapping("/me")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
@@ -128,15 +151,15 @@ public class CardController {
         return cardService.filterMine(filter, pageable);
     }
 
+
     /* ========================= CREATE CARDS ========================= */
 
+
     /**
+     * Creates a new card for the currently authenticated user.
      *
-     * A method to create a new card for the authenticated user.
-     * Can be used by both admins and users.
-     *
-     * @param req CardCreateRequestDto dto with card data
-     * @return CardResponseDTO dto
+     * @param req card creation request
+     * @return {@link CardResponseDTO} representing the created card
      */
     @PostMapping("/me/create")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
@@ -154,14 +177,13 @@ public class CardController {
         return CardMapper.toResponse(saved);
     }
 
+
     /**
+     * Creates a new card for a specific user (Admin only).
      *
-     * A method to create a card for a specific user by user ID.
-     * Can only be used by admins.
-     *
-     * @param userId user's ID
-     * @param req CardCreateRequestDTO dto with card data
-     * @return CardResponseDTO dto
+     * @param userId target user's ID
+     * @param req    card creation request
+     * @return {@link CardResponseDTO} representing the created card
      */
     @PostMapping("/users/{userId}/create")
     @PreAuthorize("hasRole('ADMIN')")
@@ -180,11 +202,11 @@ public class CardController {
         return CardMapper.toResponse(saved);
     }
 
+
     /**
+     * Transfers money between the authenticated user's own cards.
      *
-     * A method that allows an authenticated user to transfer money between their cards.
-     *
-     * @param req TransferRequestDTO dto
+     * @param req transfer request containing source, target, and amount
      */
     @PostMapping("/me/transfers")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -201,13 +223,12 @@ public class CardController {
         cardService.transferBetweenMyCards(req.fromCardId(), req.toCardId(), req.amount());
     }
 
+
     /**
+     * Blocks a card by ID (Admin only).
      *
-     * A method used to block cards using card's ID.
-     * Can only be used by admins.
-     *
-     * @param id card's ID
-     * @return ResponseEntity with Void typing
+     * @param id card ID
+     * @return 204 No Content
      */
     @PatchMapping("/{id}/block")
     @PreAuthorize("hasRole('ADMIN')")
@@ -222,13 +243,12 @@ public class CardController {
         return ResponseEntity.noContent().build();
     }
 
+
     /**
+     * Activates a card by ID (Admin only).
      *
-     * A method used to activate cards using card's ID.
-     * Can only be used by admins.
-     *
-     * @param id card's ID
-     * @return ResponseEntity with Void typing
+     * @param id card ID
+     * @return 204 No Content
      */
     @PatchMapping("/{id}/activate")
     @PreAuthorize("hasRole('ADMIN')")
@@ -243,15 +263,12 @@ public class CardController {
         return ResponseEntity.noContent().build();
     }
 
+
     /**
+     * Requests card block (for user-owned cards).
      *
-     * A method used to request a card block.
-     * The card must belong to the authenticated user.
-     * Takes card ID from the path.
-     * Can be used by both admins and users.
-     *
-     * @param id card's ID
-     * @return ResponseEntity with Void typing
+     * @param id card ID
+     * @return 204 No Content
      */
     @PatchMapping("/me/{id}/request-block")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
@@ -266,17 +283,17 @@ public class CardController {
         return ResponseEntity.noContent().build();
     }
 
+
     /* ========================= BASIC CRUD ========================= */
 
+
     /**
+     * Retrieves a card by ID.
+     * <p>
+     * Admins can access any card; users can only access their own.
      *
-     * A method to get a card by id.
-     * Can be used by both admins and users.
-     * Users can only access their own cards using this method.
-     * Admins can see any card.
-     *
-     * @param id id
-     * @return CardResponseDTO dto with the requested card.
+     * @param id card ID
+     * @return {@link CardResponseDTO} representing the requested card
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
@@ -291,6 +308,14 @@ public class CardController {
         return CardMapper.toResponse(c);
     }
 
+
+    /**
+     * Updates card attributes (Admin only).
+     *
+     * @param id  card ID
+     * @param req update request
+     * @return {@link CardResponseDTO} representing the updated card
+     */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Admin: update card", description = "Updates allowed fields on the card.")
@@ -308,6 +333,12 @@ public class CardController {
         return CardMapper.toResponse(updated);
     }
 
+
+    /**
+     * Deletes a card by ID (Admin only).
+     *
+     * @param id card ID
+     */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -321,8 +352,16 @@ public class CardController {
         cardService.deleteCard(id);
     }
 
+
     /* ========================= HELPERS ========================= */
 
+
+    /**
+     * Parses and validates the sort query parameter, ensuring only safe fields are sortable.
+     *
+     * @param sort the raw sort parameter (e.g. "createdAt,desc;balance,asc")
+     * @return a {@link Sort} object containing validated sort fields
+     */
     private Sort parseSort(String sort) {
         if (sort == null || sort.isBlank()) {
             return Sort.by(Sort.Order.desc("createdAt"));

@@ -23,6 +23,35 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 
+/**
+ * REST controller providing endpoints for user management and profile operations.
+ * <p>
+ * Includes both administrative operations (accessible to {@code ROLE_ADMIN})
+ * and self-service endpoints for authenticated users ({@code ROLE_USER} or {@code ROLE_ADMIN}).
+ * <p>
+ * Uses {@link com.example.bankcards.service.UserService} for all business logic
+ * related to user creation, retrieval, update, and deletion.
+ *
+ * <p><b>Endpoints Overview:</b>
+ * <ul>
+ *   <li>{@code GET /users} — List all users (Admin only)</li>
+ *   <li>{@code GET /users/{id}} — Retrieve user by ID (Self or Admin)</li>
+ *   <li>{@code POST /users} — Create new user (Admin only)</li>
+ *   <li>{@code PUT /users/{id}} — Update existing user (Admin only)</li>
+ *   <li>{@code DELETE /users/{id}} — Delete a user (Admin only)</li>
+ *   <li>{@code GET /users/me} — Retrieve the authenticated user's profile</li>
+ *   <li>{@code PUT /users/me} — Update the authenticated user's profile</li>
+ * </ul>
+ *
+ * <p>All endpoints require JWT-based authentication unless otherwise specified.
+ *
+ * @see com.example.bankcards.service.UserService
+ * @see com.example.bankcards.dto.user.UserResponseDTO
+ * @see com.example.bankcards.dto.user.UserCreateRequestDTO
+ * @see com.example.bankcards.dto.user.UserUpdateRequestDTO
+ * @see com.example.bankcards.dto.user.AdminUserUpdateRequestDTO
+ * @see io.swagger.v3.oas.annotations.security.SecurityRequirement
+ */
 @Tag(name = "Users", description = "User self-service and admin operations")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
@@ -37,6 +66,14 @@ public class UserController {
 
     /* ========================= FILTERS ========================= */
 
+
+    /**
+     * Retrieves a list of all users.
+     * <p>
+     * Accessible only to administrators.
+     *
+     * @return list of {@link UserResponseDTO} representing all users
+     */
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Admin: list users", description = "Returns all users.")
@@ -52,6 +89,15 @@ public class UserController {
 
     /* ========================= BASIC CRUD ========================= */
 
+
+    /**
+     * Retrieves a user by their ID.
+     * <p>
+     * Accessible by the user themselves or an administrator.
+     *
+     * @param id the ID of the user to retrieve
+     * @return {@link UserResponseDTO} containing user details
+     */
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @Operation(summary = "Get user by id", description = "Self or ADMIN.")
@@ -64,6 +110,15 @@ public class UserController {
         return userService.getUserById(id);
     }
 
+
+    /**
+     * Creates a new user account.
+     * <p>
+     * Accessible only to administrators.
+     *
+     * @param req request payload containing user information
+     * @return {@link UserResponseDTO} representing the newly created user
+     */
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.CREATED)
@@ -78,6 +133,16 @@ public class UserController {
         return userService.createUser(req);
     }
 
+
+    /**
+     * Updates an existing user account.
+     * <p>
+     * Accessible only to administrators. Allows changing user details and roles.
+     *
+     * @param id  ID of the target user
+     * @param req request payload containing updated user attributes
+     * @return {@link UserResponseDTO} representing the updated user
+     */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Admin: update user", description = "Updates the target user.")
@@ -92,6 +157,14 @@ public class UserController {
         return userService.adminUpdateUser(id, req);
     }
 
+
+    /**
+     * Deletes a user by ID.
+     * <p>
+     * Accessible only to administrators.
+     *
+     * @param id ID of the user to delete
+     */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -108,6 +181,14 @@ public class UserController {
 
     /* ========================= CURRENT USER ENDPOINTS ========================= */
 
+
+    /**
+     * Retrieves the authenticated user's own profile.
+     * <p>
+     * Accessible by any authenticated user.
+     *
+     * @return {@link UserResponseDTO} representing the current user
+     */
     @GetMapping("/me")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @Operation(summary = "Get current user profile", description = "Returns the authenticated user's profile.")
@@ -121,6 +202,14 @@ public class UserController {
     }
 
 
+    /**
+     * Updates the authenticated user's profile.
+     * <p>
+     * Accessible by any authenticated user. Supports partial updates.
+     *
+     * @param req request body containing new values for the user's own attributes
+     * @return {@link UserResponseDTO} representing the updated user
+     */
     @PutMapping("/me")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @Operation(summary = "Update my profile", description = "Self-service update for the authenticated user.")

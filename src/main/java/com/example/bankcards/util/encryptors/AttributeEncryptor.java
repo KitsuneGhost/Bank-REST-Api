@@ -10,6 +10,43 @@ import javax.crypto.spec.SecretKeySpec;
 import java.util.Base64;
 import java.util.regex.Pattern;
 
+
+/**
+ * JPA {@link jakarta.persistence.AttributeConverter} that transparently encrypts and decrypts
+ * sensitive string attributes (e.g., card PIN, CVV) using AES encryption.
+ * <p>
+ * This converter ensures that sensitive data is never stored in plaintext
+ * within the database. Encryption and decryption are handled automatically
+ * whenever entities are persisted or loaded via JPA.
+ *
+ * <p><b>Key Management:</b>
+ * <ul>
+ *   <li>The AES key is loaded from the environment variable
+ *       {@code ATTRIBUTE_AES_KEY_B64}, which must contain a Base64-encoded key.</li>
+ *   <li>If the variable is missing, a static fallback key is used for development only.</li>
+ *   <li>In production, you must provide a securely managed 128/192/256-bit key.</li>
+ * </ul>
+ *
+ * <p><b>Behavior:</b>
+ * <ul>
+ *   <li>During writes, plaintext values are AES-encrypted and Base64-encoded before persistence.</li>
+ *   <li>During reads, values are Base64-decoded and decrypted.</li>
+ *   <li>If decryption fails and the stored value appears to be raw digits
+ *       (3–4 digits, e.g., a CVV), it is treated as a legacy unencrypted record
+ *       and returned as-is after logging a warning.</li>
+ * </ul>
+ *
+ * <p><b>Example usage:</b>
+ * <pre>
+ * &#64;Convert(converter = AttributeEncryptor.class)
+ * private String cvv;
+ * </pre>
+ *
+ * @see jakarta.persistence.AttributeConverter
+ * @see jakarta.persistence.Convert
+ * @see javax.crypto.Cipher
+ * @see javax.crypto.spec.SecretKeySpec
+ */
 @Converter
 public class AttributeEncryptor implements AttributeConverter<String, String> {
 
@@ -28,6 +65,14 @@ public class AttributeEncryptor implements AttributeConverter<String, String> {
         KEY = Base64.getDecoder().decode(keyBase64);
     }
 
+
+    /**
+     * Encrypts the given plaintext value before persisting it to the database.
+     *
+     * @param attribute the raw sensitive value (e.g., CVV or PIN)
+     * @return the AES-encrypted and Base64-encoded representation, or {@code null} if input is null
+     * @throws RuntimeException if encryption fails
+     */
     @Override
     public String convertToDatabaseColumn(String attribute) {
         if (attribute == null) return null;
@@ -40,6 +85,18 @@ public class AttributeEncryptor implements AttributeConverter<String, String> {
         }
     }
 
+
+    /**
+     * Decrypts the given database value back into plaintext.
+     * <p>
+     * If decryption fails but the stored value matches a 3–4 digit pattern,
+     * the method assumes the value was stored unencrypted (legacy data)
+     * and logs a warning before returning it as-is.
+     *
+     * @param dbData the encrypted (or legacy plaintext) database value
+     * @return decrypted plaintext string, or raw digits if legacy record
+     * @throws RuntimeException if decryption fails for a non-legacy value
+     */
     @Override
     public String convertToEntityAttribute(String dbData) {
         if (dbData == null) return null;

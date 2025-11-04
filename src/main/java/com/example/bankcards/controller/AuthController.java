@@ -28,10 +28,28 @@ import java.util.Map;
 import java.util.Set;
 
 /**
+ * REST controller responsible for handling authentication-related operations.
+ * <p>
+ * This controller exposes public endpoints for user login and registration.
+ * It issues JSON Web Tokens (JWT) upon successful authentication and stores
+ * newly registered users with securely encoded passwords.
  *
- * Rest Controller for managing authentication endpoints.
- * Is public to allow anybody login and register.
+ * <p><b>Endpoints:</b>
+ * <ul>
+ *   <li>{@code POST /auth/login} — Authenticates a user and returns a JWT token.</li>
+ *   <li>{@code POST /auth/register} — Creates a new user account.</li>
+ * </ul>
  *
+ * <p>All endpoints are publicly accessible and do not require authentication.
+ * Role-based access control applies to other parts of the API after login.
+ *
+ * @see com.example.bankcards.security.JwtUtils
+ * @see com.example.bankcards.security.CustomUserDetails
+ * @see com.example.bankcards.dto.auth.LoginRequest
+ * @see com.example.bankcards.dto.auth.LoginResponse
+ * @see com.example.bankcards.dto.auth.RegisterRequest
+ * @see com.example.bankcards.entity.UserEntity
+ * @see org.springframework.security.authentication.AuthenticationManager
  */
 @Tag(name = "Auth", description = "Authentication endpoints")
 @RestController
@@ -53,12 +71,36 @@ public class AuthController {
 
 
     /**
+     * Authenticates a user using username and password credentials, and returns a JWT token.
+     * <p>
+     * This endpoint verifies user credentials via {@link AuthenticationManager}, and upon success,
+     * generates a signed JWT using {@link JwtUtils}. The token can then be used to authorize
+     * requests to protected endpoints.
      *
-     * Login method. Returns JWT for authentication.
+     * <p><b>Request:</b>
+     * <pre>
+     * POST /auth/login
+     * {
+     *   "username": "johndoe",
+     *   "password": "securePassword"
+     * }
+     * </pre>
      *
-     * @param req request body (JSON).
-     * @return LoginResponse dto with JWT.
+     * <p><b>Response:</b>
+     * <pre>
+     * {
+     *   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+     *   "expiresInMs": 86400000
+     * }
+     * </pre>
      *
+     * @param req the login request containing username and password
+     * @return {@link com.example.bankcards.dto.auth.LoginResponse} containing the JWT token and expiration
+     * @throws org.springframework.security.authentication.BadCredentialsException if authentication fails
+     *
+     * @see com.example.bankcards.dto.auth.LoginRequest
+     * @see com.example.bankcards.dto.auth.LoginResponse
+     * @see com.example.bankcards.security.JwtUtils
      */
     @Operation(summary = "Login (returns JWT)")
     @ApiResponses({
@@ -77,12 +119,36 @@ public class AuthController {
 
 
     /**
+     * Registers a new user in the system.
+     * <p>
+     * Accepts a {@link com.example.bankcards.dto.auth.RegisterRequest} containing basic
+     * user data and stores it as a new {@link com.example.bankcards.entity.UserEntity}
+     * with encoded password and default role {@code ROLE_USER}.
      *
-     * Registration method. Accepts RegisterRequest and creates a user.
+     * <p><b>Request:</b>
+     * <pre>
+     * POST /auth/register
+     * {
+     *   "username": "janedoe",
+     *   "email": "jane.doe@example.com",
+     *   "fullName": "Jane Doe",
+     *   "password": "strongPass123"
+     * }
+     * </pre>
      *
-     * @param req RegisterRequest containing new user data.
-     * @return a message signaling that user was successfully created.
+     * <p><b>Response:</b>
+     * <pre>
+     * {
+     *   "message": "User created"
+     * }
+     * </pre>
      *
+     * @param req the registration request containing new user information
+     * @return a confirmation message indicating successful creation
+     * @throws org.springframework.dao.DataIntegrityViolationException if username or email already exists
+     *
+     * @see com.example.bankcards.dto.auth.RegisterRequest
+     * @see com.example.bankcards.entity.UserEntity
      */
     @Operation(summary = "Register user")
     @ApiResponses({

@@ -15,11 +15,9 @@ package com.example.bankcards.dto.auth;
  * </pre>
  *
  * @param token        the signed JWT string that grants access to protected resources
- * @param expiresInMs  token lifetime in milliseconds
- *                     (usually matches {@link com.example.bankcards.security.JwtUtils#getExpirationMs()})
  *
  * @see com.example.bankcards.security.JwtUtils
  * @see LoginRequest
  */
-public record LoginResponse(String token, long expiresInMs) {
+public record LoginResponse(String token) {
 }

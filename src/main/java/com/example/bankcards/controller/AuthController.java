@@ -114,7 +114,7 @@ public class AuthController {
                 new UsernamePasswordAuthenticationToken(req.username(), req.password()));
         CustomUserDetails cud = (CustomUserDetails) auth.getPrincipal();
         String token = jwtUtils.generateToken(cud);
-        return new LoginResponse(token, 24*60*60*1000);
+        return new LoginResponse(token);
     }
 
 
